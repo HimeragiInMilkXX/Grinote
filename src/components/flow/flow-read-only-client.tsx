@@ -1,0 +1,135 @@
+"use client"
+
+import TaskNode from '@/components/flow/task-node';
+import { TaskNodeType } from '@/types/flow';
+import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge, MiniMap, Edge, useReactFlow, EdgeMouseHandler, ReactFlowProvider, NodeMouseHandler, Node, Panel, ConnectionLineType, getOutgoers, ReactFlowInstance, ReactFlowJsonObject } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { useDragControls, motion } from "motion/react"
+import { useCallback, useEffect, useRef, useState } from 'react';
+import FlowProcessLoading from './flow-process-loading';
+import NodeDataConfirmPanel from './node-data-confirm-panel';
+
+// ADD NEW CUSTOM NODE TYPE
+const nodeTypes = {
+    taskNode: TaskNode
+}
+
+interface FlowReadOnlyClientProps {
+
+    initialNodes: TaskNodeType[];
+    initialEdges: Edge[];
+    project_id: string;
+    getLayoutedElements: ( nodes: TaskNodeType[], edges: Edge[] ) => any
+    saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => void;
+
+}
+
+const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGraphToNodes, project_id }: FlowReadOnlyClientProps ) => {
+
+    const nodesInitialized = useNodesInitialized();
+
+    const [ nodes, setNodes, onNodesChange ] = useNodesState(initialNodes);
+    const [ edges, setEdges, onEdgesChange ] = useEdgesState(initialEdges)
+
+    const [ showEditor, setShowEditor ] = useState<boolean>( false )
+
+    const [ selectedNode, setSelectedNode ] = useState<TaskNodeType | null>();
+
+    const onContextMenu = useCallback(
+
+        ( e ) => {
+
+            e.preventDefault();
+            e.stopPropagation();
+
+        }, []
+
+    )
+
+    const onNodeClick = useCallback<NodeMouseHandler<TaskNodeType>>( ( e, node )  => {
+
+        e.stopPropagation();
+
+        if( node.data.task.isCompleted || node.data.task.isRoot ) {
+
+            setShowEditor( false );
+            setSelectedNode( null );
+            return;
+            
+        }
+
+        setShowEditor( true )
+
+        setSelectedNode( node )
+
+    }, [setSelectedNode, setShowEditor] )
+
+    const onPaneClick = useCallback( ( e: any ) => {
+
+        e.stopPropagation();
+
+        setSelectedNode(null);
+
+        setShowEditor( false )
+
+    }, [setSelectedNode, setShowEditor])
+
+    const dragControls = useDragControls();
+
+    const layoutNodes = useCallback( () => {
+
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements( nodes, edges );
+
+        setNodes( [...layoutedNodes] );
+        setEdges( [...layoutedEdges] );
+
+    }, [ nodes, edges ] );
+
+    useEffect( () => {
+
+        layoutNodes();
+
+    }, [])
+
+    return (
+        <div className='w-full h-screen'>
+
+            { (!nodesInitialized && nodes.length != 0) && <FlowProcessLoading/> }
+
+            <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onEdgeContextMenu={onContextMenu}
+                onContextMenu={onContextMenu}
+                onNodeContextMenu={onContextMenu}
+                onNodeClick={onNodeClick}
+                onPaneClick={onPaneClick}
+                nodesConnectable={false}
+                nodesDraggable={false}
+                fitView>
+                <MiniMap />
+                <Background/>
+                <Controls position='top-right' />
+
+                <Panel position='top-left'>
+
+                    { showEditor && selectedNode ?
+                        <motion.div
+                            drag
+                            dragControls={dragControls}
+                            dragListener={false}
+                            dragMomentum={false}
+                            className="nodrag">
+                            <NodeDataConfirmPanel project_id={project_id} selectedNode={selectedNode} onPointerDown={e => dragControls.start(e)}/>
+                        </motion.div>
+                        : 'Welcome To Grinote' }
+
+                </Panel>
+
+            </ReactFlow>
+
+        </div>
+    )
+}
+
+export default FlowReadOnlyClient
