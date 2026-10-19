@@ -2,7 +2,7 @@
 
 import { TaskNodeType } from "@/types/flow";
 import dagre from "@dagrejs/dagre";
-import { Edge, Node } from "@xyflow/react";
+import { Edge } from "@xyflow/react";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel( () => ({}) );
 

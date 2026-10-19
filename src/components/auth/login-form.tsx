@@ -12,7 +12,7 @@ import Link from "next/link";
 
 export const loginFormSchema = z.object({
 
-    email: z.email( "Please enter a valid email address." ),
+    email: z.email( "有効なメールアドレスを入力してください。" ),
     password: z.string()
 
 })
@@ -42,9 +42,9 @@ const LoginForm = () => {
         <Card className="w-full sm:max-w-md">
 
             <CardHeader>
-                <CardTitle> Login </CardTitle>
-                <CardDescription> login to your account on Grinote mvp </CardDescription>
-                <Link href="/signup" className="text-blue-500 underline text-xs"> sign up here if you don't have an account </Link>
+                <CardTitle> ログイン </CardTitle>
+                <CardDescription> Grinote MVPを利用するには、アカウントが必要です </CardDescription>
+                <Link href="/signup" className="text-blue-500 underline text-xs"> アカウントを持っている方 </Link>
             </CardHeader>
 
             <CardContent>
@@ -55,7 +55,7 @@ const LoginForm = () => {
                             control={form.control}
                             render={ ( { field, fieldState } ) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="login-form-email"> Email </FieldLabel>
+                                    <FieldLabel htmlFor="login-form-email"> メールアドレス </FieldLabel>
                                     <Input { ...field } id="login-form-email" type="email" aria-invalid={fieldState.invalid} placeholder="user@example.com" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
@@ -68,7 +68,7 @@ const LoginForm = () => {
                             control={form.control}
                             render={ ( { field, fieldState } ) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="login-form-password"> Password </FieldLabel>
+                                    <FieldLabel htmlFor="login-form-password"> パスワード </FieldLabel>
                                     <Input { ...field } id="login-form-password" type="password" aria-invalid={fieldState.invalid} placeholder="●●●●●●●●" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
@@ -81,7 +81,7 @@ const LoginForm = () => {
             </CardContent>
 
             <CardFooter>
-                <Button type="submit" form="login-form" className="w-full"> Login </Button>
+                <Button type="submit" form="login-form" className="w-full"> ログイン </Button>
             </CardFooter>
 
         </Card>

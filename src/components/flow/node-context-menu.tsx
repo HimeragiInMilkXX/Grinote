@@ -1,8 +1,7 @@
 "use client"
 
 import { Button } from "../ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from "../ui/card";
-import { ContextMenuProps } from "./flow-context-menu";
+import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 
 interface NodeContextMenuProps {
 

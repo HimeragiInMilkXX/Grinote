@@ -8,7 +8,7 @@ export default function LogoutButton() {
     return (
 
         <Button onClick={logout}>
-            Logout
+            ログアウト
         </Button>
 
     )

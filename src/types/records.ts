@@ -1,4 +1,4 @@
-import { TableTaskRow, Task } from "./flow";
+import { TableTaskRow } from "./flow";
 
 export type OnAirRecord = {
 
@@ -10,7 +10,11 @@ export type OnAirRecord = {
     completed_at: string;
     updated_at: string;
     duration: number;
-    status: "active" | "completed" | "abandoned" | "paused"
-    nodes?: TableTaskRow
+    status: "active" | "completed" | "abandoned" | "paused";
+    xp_change?: number;
+    nodes?: TableTaskRow;
+    projects: Project;
+    reward_redeemed: boolean;
+    resource_gained: Record<string, number>
 
 }

@@ -14,6 +14,7 @@ type Project = {
     streak: number;
     user_id: string;
     work_days: boolean[];
+    tutorial_progress: [ boolean, boolean, boolean, boolean, boolean ]
 
     characters?: Character
 

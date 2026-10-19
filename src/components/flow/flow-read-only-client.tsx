@@ -2,12 +2,15 @@
 
 import TaskNode from '@/components/flow/task-node';
 import { TaskNodeType } from '@/types/flow';
-import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge, MiniMap, Edge, useReactFlow, EdgeMouseHandler, ReactFlowProvider, NodeMouseHandler, Node, Panel, ConnectionLineType, getOutgoers, ReactFlowInstance, ReactFlowJsonObject } from '@xyflow/react';
+import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, MiniMap, Edge, NodeMouseHandler, Panel, ReactFlowJsonObject } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useDragControls, motion } from "motion/react"
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import FlowProcessLoading from './flow-process-loading';
 import NodeDataConfirmPanel from './node-data-confirm-panel';
+import { Card, CardContent } from '../ui/card';
+import { Button } from '../ui/button';
+import { redirect } from 'next/navigation';
 
 // ADD NEW CUSTOM NODE TYPE
 const nodeTypes = {
@@ -37,7 +40,7 @@ const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, 
 
     const onContextMenu = useCallback(
 
-        ( e ) => {
+        ( e: any ) => {
 
             e.preventDefault();
             e.stopPropagation();
@@ -122,9 +125,23 @@ const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, 
                             className="nodrag">
                             <NodeDataConfirmPanel project_id={project_id} selectedNode={selectedNode} onPointerDown={e => dragControls.start(e)}/>
                         </motion.div>
-                        : 'Welcome To Grinote' }
+                        : <p className='text-2xl'>今日はどれにしますか？</p> }
 
                 </Panel>
+
+                {
+
+                    nodes.length <= 1 &&
+                    <Panel position='bottom-center'>
+                        <Card>
+                            <CardContent className='flex flex-col gap-3'>
+                                <p className='text-xl'> まだタスクなさそうですね！ </p>
+                                <Button onClick={() => redirect(`/project/${project_id}/tree/edit`)}> まずは作ろう </Button>
+                            </CardContent>
+                        </Card>
+                    </Panel>
+
+                }
 
             </ReactFlow>
 

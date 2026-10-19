@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
-import { getActiveTask, pauseTask, resumeTask, startTask } from "./serverActions";
+import { getActiveTask, startTask } from "./serverActions";
 import { OnAirRecord } from "@/types/records";
-import OnAirTimer from "@/components/project/display/onair/onair-timer";
+import OnAirTimer from "@/components/project/onair/onair-timer";
+import OnAirCharacter from "@/components/project/character/onair-character";
+import { getProject } from "@/lib/projects";
+import { updateTutorialProgress } from "../serverActions";
 
 type Props = {
 
@@ -19,6 +22,7 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
     const { projectId } = await params;
 
     let activeTask: OnAirRecord | null = await getActiveTask( projectId );
+    const project: Project = await getProject( projectId );
 
     const tryStartTask = async () => {
 
@@ -32,6 +36,7 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
             try {
 
                 activeTask = await startTask( nodeId!, projectId );
+                await updateTutorialProgress(projectId, 2);
 
             } catch( e: any ) {
 
@@ -57,17 +62,20 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
     }
 
     return (
-        <div>
+        <>
             {
 
                 activeTask && (
 
-                    <OnAirTimer activeTask={activeTask}/>
+                    <div className="flex gap-3">
+                        <OnAirCharacter project={project}/>
+                        <OnAirTimer activeTask={activeTask}/>
+                    </div>
 
                 )
 
             }
-        </div>
+        </>
     )
 }
 

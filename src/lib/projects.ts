@@ -8,7 +8,7 @@ export const getProject = cache( async ( projectId: string ) => {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: project, error } = await supabase.from("projects").select("*").eq( "id", projectId ).eq( "user_id", user?.id ).single();
+    const { data: project, error } = await supabase.from("projects").select("*, characters ( * )").eq( "id", projectId ).eq( "user_id", user?.id ).single();
 
     if( error ) throw error;
 

@@ -2,8 +2,8 @@
 
 import { handleCreateProject, handleDetailsDef } from "@/app/project/new/clientActions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
@@ -13,6 +13,7 @@ import dynamic from "next/dynamic";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { redirect } from "next/navigation";
+import { addWeeks, format } from "date-fns";
 
 const WEEKDAYS = [
     { value: 1, label: "月" },
@@ -79,7 +80,7 @@ const NewProjectDetailsForm = () => {
             name: "",
             character_given_name: "",
             daily_time_goal: { hours: 0, minutes: 0, seconds: 0 },
-            achieve_date_goal: (new Date()).toISOString().split("T")[0],
+            achieve_date_goal: format(addWeeks( new Date(), 2 ), 'yyyy-MM-dd'),
             work_days: [],
             description: ""
         }
@@ -165,7 +166,7 @@ const NewProjectDetailsForm = () => {
                             render={ ( { field, fieldState } ) => (
                                 <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel htmlFor="new-project-details-form-achieve-date-goal"> 達成日時 </FieldLabel>
-                                    <Input {...field} type="date" id="new-project-details-form-achieve-date-goal" aria-invalid={fieldState.invalid} placeholder="いつ頃目標を達成したい？" autoComplete="off" />
+                                    <Input {...field} value={field.value == null ? "" : String(field.value)} type="date" id="new-project-details-form-achieve-date-goal" aria-invalid={fieldState.invalid} placeholder="いつ頃目標を達成したい？" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
                                     )}
@@ -196,7 +197,7 @@ const NewProjectDetailsForm = () => {
                                 <Field data-invalid={fieldState.invalid}>
 
                                     <FieldLabel> 週間目標（曜日） </FieldLabel>
-                                    <FieldDescription> ＊作業したい曜日を選びましょう </FieldDescription>
+                                    <FieldDescription> ＊頑張りたい曜日を選びましょう </FieldDescription>
 
                                     <div className="flex flex-wrap gap-4">
 

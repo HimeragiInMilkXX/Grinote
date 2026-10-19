@@ -1,6 +1,7 @@
 "use server";
 
 import { loginFormSchema } from "@/components/auth/login-form";
+import { signupFormSchema } from "@/components/auth/signup-form";
 import { createActionClient } from "@/utils/supabase/actions";
 import { stringify } from "@/utils/utils";
 import { redirect } from "next/navigation";
@@ -21,12 +22,12 @@ export async function login( formData: z.infer<typeof loginFormSchema> ) {
 
 }
 
-export async function signup( formData: FormData ) {
+export async function signup( formData: z.infer<typeof signupFormSchema> ) {
 
     const supabase = await createActionClient();
 
-    const email = stringify( formData.get("email") );
-    const password = stringify( formData.get("password") );
+    const email = stringify( formData.email );
+    const password = stringify( formData.password );
 
     const { error } = await supabase.auth.signUp( { email, password } );
 

@@ -1,6 +1,14 @@
-const TestPage = async () => {
+const TestPage = () => {
 
-    return <>Test Page</>
+    return (
+
+        <>
+        
+            
+
+        </>
+
+    )
 
 }
 

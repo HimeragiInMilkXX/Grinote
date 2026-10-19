@@ -1,6 +1,6 @@
 "use client"
 
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from "../ui/card"
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card"
 
 import dynamic from "next/dynamic";
 import z from "zod/v4";
@@ -12,7 +12,7 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
-import { Ref, useEffect, useImperativeHandle, useState } from "react";
+import { useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
@@ -24,6 +24,7 @@ interface Props {
 
     selectedNode: TaskNodeType;
     onPointerDown: (event: any) => void;
+    requiresSaveAction: () => void;
 
 }
 
@@ -52,7 +53,7 @@ export const nodeDetailsFormSchema = z.object({
 
 })
 
-const NodeDataDisplayEditor = ( { selectedNode, onPointerDown }: Props ) => {
+const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveAction }: Props ) => {
 
     const form = useForm({
 
@@ -106,6 +107,8 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown }: Props ) => {
             }
 
         }))
+
+        requiresSaveAction()
 
     }
 
@@ -269,7 +272,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown }: Props ) => {
                                         <FieldLabel htmlFor="node-details-form-repetitions-required"> 繰り返す回数 </FieldLabel>
 
                                     </div>
-                                    <Input { ...field } disabled={!isLoop || !isEditing || !isAction} id="node-details-form-reptitions-required" type="number" step={1} aria-invalid={fieldState.invalid} placeholder="練習なら毎日ちょっとでもやらないと！" autoComplete="off" />
+                                    <Input { ...field } value={field.value == null ? "" : String(field.value)} disabled={!isLoop || !isEditing || !isAction} id="node-details-form-reptitions-required" type="number" step={1} aria-invalid={fieldState.invalid} placeholder="練習なら毎日ちょっとでもやらないと！" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
                                     )}

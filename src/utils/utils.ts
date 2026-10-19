@@ -72,6 +72,12 @@ export function getMsFormatted( ms: number ) {
 
 }
 
+export function isXpGained( xp_change: number ): boolean {
+
+    return xp_change > 0;
+
+}
+
 export function timestampToLocalDateTime( timestampString: string ) {
 
     const d = new Date( timestampString );
@@ -80,5 +86,26 @@ export function timestampToLocalDateTime( timestampString: string ) {
     const localTime = d.toTimeString().split(' ')[0];
 
     return { date: localDate, time: localTime }
+
+}
+
+export function isBetween( value: number, min: number, max: number ) {
+
+    return value >= min && value < max;
+
+}
+
+export function clamp( value: number, min: number, max: number ) {
+
+    let minL = min, maxL = max;
+
+    if( min > max ) { minL = max, maxL = minL }
+
+    if( isBetween( value, minL, maxL ) ) return value;
+
+    if( value > maxL ) return maxL;
+    if( value < minL ) return minL;
+
+    if( value == min || value == max ) return value;
 
 }

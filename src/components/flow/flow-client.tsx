@@ -1,15 +1,19 @@
 "use client"
 
-import FlowContextMenu, { ContextMenuProps } from '@/components/flow/flow-context-menu';
+import FlowContextMenu from '@/components/flow/flow-context-menu';
 import NodeContextMenu from '@/components/flow/node-context-menu';
 import NodeDataDisplayEditor from '@/components/flow/node-data-display-editor';
 import TaskNode from '@/components/flow/task-node';
 import { TaskNodeType } from '@/types/flow';
-import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge, MiniMap, Edge, useReactFlow, EdgeMouseHandler, ReactFlowProvider, NodeMouseHandler, Node, Panel, ConnectionLineType, getOutgoers, ReactFlowInstance, ReactFlowJsonObject } from '@xyflow/react';
+import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge, MiniMap, Edge, useReactFlow, EdgeMouseHandler, NodeMouseHandler, Node, Panel, ConnectionLineType, getOutgoers, ReactFlowInstance, ReactFlowJsonObject } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useDragControls, motion } from "motion/react"
 import { useCallback, useEffect, useRef, useState } from 'react';
 import FlowProcessLoading from './flow-process-loading';
+import { Card, CardContent } from '../ui/card';
+import { Button } from '../ui/button';
+import { getActiveTask } from '@/app/project/[projectId]/onair/serverActions';
+import { updateTutorialProgress } from '@/app/project/[projectId]/serverActions';
 
 // ADD NEW CUSTOM NODE TYPE
 const nodeTypes = {
@@ -35,11 +39,22 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const flowRef = useRef(null);
 
-    const { deleteElements, addNodes, screenToFlowPosition, updateNode } = useReactFlow();
+    const [ hasActiveTask, setHasActiveTask ] = useState( false );
+
+    useEffect( () => {
+
+        getActiveTask( project_id ).then( res => setHasActiveTask( res != null ) );
+
+    }, [project_id])
+
+    const { deleteElements, addNodes, screenToFlowPosition, updateNode, addEdges } = useReactFlow();
 
     const onConnect = useCallback(
-        ( params: any ) => setEdges( edgesSnapshot => addEdge( { ...params, type: ConnectionLineType.SmoothStep, animated: true }, edgesSnapshot ) ),
-        []
+        ( params: any ) => {
+            if( hasActiveTask ) return;
+            setEdges( edgesSnapshot => addEdge( { ...params, type: ConnectionLineType.SmoothStep, animated: true }, edgesSnapshot ) )
+        },
+        [ hasActiveTask ]
     )
 
     const isValidConnection = useCallback(
@@ -82,11 +97,13 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
             e.preventDefault();
             e.stopPropagation();
 
+            if( hasActiveTask ) return;
+
             deleteElements({
                 edges: [{ id: edge.id }],
             });
 
-        }, []
+        }, [ hasActiveTask ]
 
     )
 
@@ -99,10 +116,12 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const onContextMenu = useCallback(
 
-        ( e ) => {
+        ( e: any ) => {
 
             e.preventDefault();
             e.stopPropagation();
+
+            if( hasActiveTask ) return;
 
             setShowNodeMenu( false )
             setShowMenu( true )
@@ -112,11 +131,13 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                 y: e.clientY ?? 0
             });
 
-        }, [setShowMenu]
+        }, [setShowMenu, hasActiveTask ]
 
     )
 
     const onNodeContextMenu = (e: any, node: TaskNodeType) => {
+
+        if( hasActiveTask ) return;
 
         e.preventDefault();
         e.stopPropagation();
@@ -147,14 +168,17 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const onPaneClick = useCallback(
 
-        e => {
+        (e: any) => {
 
             e.preventDefault();
             e.stopPropagation();
+
+            if( hasActiveTask ) return;
+
             closeAllMenus()
             setSelectedNode(null)
 
-        }, [setShowMenu, setShowNodeMenu, setSelectedNode]
+        }, [setShowMenu, setShowNodeMenu, setSelectedNode, hasActiveTask ]
 
     )
 
@@ -167,6 +191,8 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
     const onNodeClick = useCallback<NodeMouseHandler<TaskNodeType>>( ( e, node )  => {
 
         e.stopPropagation();
+
+        if( hasActiveTask ) return;
 
         setShowMenu(false);
         setShowNodeMenu(false);
@@ -181,7 +207,7 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         setSelectedNode( node )
 
-    }, [setShowMenu, setShowNodeMenu, setSelectedNode] )
+    }, [setShowMenu, setShowNodeMenu, setSelectedNode, hasActiveTask ] )
 
     const dragControls = useDragControls();
 
@@ -195,6 +221,8 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const deleteNode = () => {
 
+        if( hasActiveTask ) return;
+
         if( !selectedNode ) return;
 
         deleteElements({
@@ -204,15 +232,19 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
         setSelectedNode( null );
         closeAllMenus();
 
+        setRequiresSaveAction( true );
+
     }
 
     const duplicateNode = (e: any) => {
+
+        if( hasActiveTask ) return;
 
         if( !selectedNode ) return;
 
         updateNode( selectedNode.id, { selected: false } );
 
-        const newNode = {
+        const newNode: TaskNodeType = {
 
             id: crypto.randomUUID(),
             selected: true,
@@ -229,9 +261,35 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         setShowEditor( true );
 
+        setRequiresSaveAction( true );
+
+    }
+
+    // FOR AGENT
+    const insertByInput = ( nodes: string, edges: string ) => {
+
+        if( hasActiveTask ) return;
+
+        if( selectedNode ) updateNode( selectedNode.id, { selected: false } );
+
+        const newNode: TaskNodeType[] = JSON.parse(nodes);
+        const newEdges: Edge[] = JSON.parse( edges );
+
+        closeAllMenus()
+        setSelectedNode(null)
+
+        addNodes( newNode )
+        addEdges( newEdges );
+
+        layoutNodes();
+
+        updateTutorialProgress(project_id, 0);
+
     }
 
     const insertNewTask = (e: any, isLoop: boolean = false, isAction: boolean = false ) => {
+
+        if( hasActiveTask ) return;
 
         if( selectedNode ) updateNode( selectedNode.id, { selected: false } );
 
@@ -267,10 +325,12 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         setShowEditor( true );
 
+        updateTutorialProgress(project_id, 0);
+
     }
 
     const layoutNodes = useCallback( () => {
-
+        
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements( nodes, edges );
 
         setNodes( [...layoutedNodes] );
@@ -284,11 +344,23 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const saveGraph = useCallback( () => {
 
+        if( hasActiveTask ) return;
+
         if( rfInstance ) saveGraphToNodes( rfInstance.toObject(), project_id );
 
         closeAllMenus();
 
-    }, [rfInstance] )
+        setRequiresSaveAction(false)
+
+    }, [rfInstance, hasActiveTask ] )
+
+    const [ requiresSaveAction, setRequiresSaveAction ] = useState<boolean>(false);
+
+    useEffect( () => {
+
+        setRequiresSaveAction( ( initialNodes.length != nodes.length ) || ( initialEdges.length != edges.length ) )
+
+    }, [nodes.length, edges.length])
 
     useEffect( () => {
 
@@ -319,7 +391,7 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
                 { menuPosition &&  <>
 
-                    { showMenu && <FlowContextMenu x={menuPosition.x} y={menuPosition.y} insertNewTask={insertNewTask} layoutNodes={layoutNodes} saveGraph={saveGraph}/> }
+                    { showMenu && <FlowContextMenu x={menuPosition.x} y={menuPosition.y} insertNewTask={insertNewTask} layoutNodes={layoutNodes} saveGraph={saveGraph} insertByInput={insertByInput}/> }
                     { showNodeMenu && <NodeContextMenu x={menuPosition.x} y={menuPosition.y} startViewing={startViewing} deleteNode={deleteNode} duplicateNode={duplicateNode}/> }
 
                 </>}
@@ -333,11 +405,38 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                             dragListener={false}
                             dragMomentum={false}
                             className="nodrag">
-                            <NodeDataDisplayEditor selectedNode={selectedNode} onPointerDown={e => dragControls.start(e)}/>
+                            <NodeDataDisplayEditor selectedNode={selectedNode} onPointerDown={e => dragControls.start(e)} requiresSaveAction={() => setRequiresSaveAction(true)}/>
                         </motion.div>
-                        : 'Welcome To Grinote' }
+                        : <p className='text-2xl'> 右クリックから始めましょう！ </p> }
 
                 </Panel>
+
+                {
+
+                    requiresSaveAction &&
+                    <Panel position='bottom-center'>
+                        <Card>
+                            <CardContent className='flex flex-col gap-3'>
+                                <p className='text-xl text-red-600'> 保存されていない変更内容がある </p>
+                                <Button onClick={saveGraph}> 今保存する </Button>
+                            </CardContent>
+                        </Card>
+                    </Panel>
+
+                }
+
+                {
+
+                    hasActiveTask &&
+                    <Panel position='bottom-center'>
+                        <Card>
+                            <CardContent className='flex flex-col gap-3'>
+                                <p className='text-xl text-red-600'> 行動中は編集できない </p>
+                            </CardContent>
+                        </Card>
+                    </Panel>
+
+                }
 
             </ReactFlow>
 

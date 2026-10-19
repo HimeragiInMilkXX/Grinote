@@ -1,3 +1,9 @@
 {
-    "folder-color.pathColors": []
+    "folder-color.pathColors": [
+        {
+            "folderPath": "mvp\\src\\components\\tutorial\\",
+            "isFolderOnly": true,
+            "color": "foldercolorizer.color_ff0000"
+        }
+    ]
 }

@@ -6,6 +6,7 @@ import { createActionClient } from "@/utils/supabase/actions";
 import { createClient } from "@/utils/supabase/server";
 import { intervalToDurationObject } from "@/utils/utils";
 import { redirect } from "next/navigation";
+import { updateTutorialProgress } from "../serverActions";
 
 export const getActiveTask = async ( project_id: string ): Promise<OnAirRecord | null> => {
 
@@ -66,6 +67,19 @@ export const startTask = async ( node_id: string, project_id: string ): Promise<
     if( !requestedTask.isAction ) throw new Error("The requested task isn't an Action")
     if( requestedTask.isCompleted ) throw new Error( "The requested task is already completed" )
 
+    const { data: childrenNodes, error: childrenNodesError } = await supabase
+        .from("nodes")
+        .select("isCompleted")
+        .eq("project_id", project_id).eq("parent_node_id", node_id);
+
+    if( childrenNodesError ) throw childrenNodesError.message
+
+    childrenNodes?.forEach( node => {
+
+        if( !node.isCompleted ) throw new Error( "Complete all the children tasks first!")
+
+    })
+
     const { data: task, error } = await supabase.from('records').insert([{
 
         user_id: user.id,
@@ -75,8 +89,6 @@ export const startTask = async ( node_id: string, project_id: string ): Promise<
     }]).select("*, nodes ( * )").single();
 
     if( error ) throw error.message;
-
-    console.log( task );
 
     return {
 
@@ -92,43 +104,23 @@ export const startTask = async ( node_id: string, project_id: string ): Promise<
 
 }
 
-export const abandonTask = async ( node_id: string, project_id: string ) => {
+export const abandonTask = async ( record_id: number, node_id: string, project_id: string ) => {
 
     const supabase = await createActionClient();
 
-    const { error } = await supabase.from("records").update({ status: "abandoned" }).eq("node_id", node_id).eq("project_id", project_id);
+    const { error } = await supabase.from("records").update({ status: "abandoned" }).eq("node_id", node_id).eq("project_id", project_id).eq("id", record_id);
 
     if( error ) throw error.message;
 
-}
-
-export const pauseTask = async ( node_id: string, project_id: string, duration: number ): Promise<OnAirRecord> => {
-
-    const supabase = await createActionClient();
-
-    const { data: task, error } = await supabase.from("records").update({ status: "paused", duration }).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
-
-    if( error ) throw error.message;
-
-    return {
-
-        ...task,
-        node: {
-
-            ...task.nodes,
-            time_limit: intervalToDurationObject( task.nodes.time_limit )
-
-        }
-
-    }
+    redirect(`/project/${project_id}/dashboard`)
 
 }
 
-export const resumeTask = async ( node_id: string, project_id: string ): Promise<OnAirRecord> => {
+export const pauseTask = async ( record_id: number, node_id: string, project_id: string, duration: number ): Promise<OnAirRecord> => {
 
     const supabase = await createActionClient();
 
-    const { data: task, error } = await supabase.from("records").update({ status: "active" }).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
+    const { data: task, error } = await supabase.from("records").update({ status: "paused", duration }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
 
     if( error ) throw error.message;
 
@@ -146,13 +138,39 @@ export const resumeTask = async ( node_id: string, project_id: string ): Promise
 
 }
 
-export const completeTask = async ( node: TableTaskRow, project_id: string, duration: number ) => {
+export const resumeTask = async ( record_id: number, node_id: string, project_id: string ): Promise<OnAirRecord> => {
+
+    const supabase = await createActionClient();
+
+    const { data: task, error } = await supabase.from("records").update({ status: "active" }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
+
+    if( error ) throw error.message;
+
+    return {
+
+        ...task,
+        node: {
+
+            ...task.nodes,
+            time_limit: intervalToDurationObject( task.nodes.time_limit )
+
+        }
+
+    }
+
+}
+
+export const completeTask = async ( record_id: number, node: TableTaskRow, project_id: string, duration: number ) => {
 
     const node_id = node.id;
 
     const supabase = await createActionClient();
 
-    const { data, error: recordError } = await supabase.from("records").update({ status: "completed", duration, completed_at: new Date() }).eq("node_id", node_id).eq("project_id", project_id).eq("status", "active").select("id").single();
+    const xp_change = 10;
+
+    const resource_gained: Record<string, number> = { 1: 1, 2: 1, 3: 1 };
+
+    const { data, error: recordError } = await supabase.from("records").update({ status: "completed", duration, completed_at: new Date(), xp_change: xp_change, resource_gained: resource_gained, reward_redeemed: false }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).eq("status", "active").select("id").single();
 
     if( recordError ) throw recordError.message;
 
@@ -171,6 +189,8 @@ export const completeTask = async ( node: TableTaskRow, project_id: string, dura
         if( nodeError ) throw nodeError.message;
 
     }
+
+    await updateTutorialProgress(project_id, 3);
 
     redirect( `/project/${project_id}/task_complete?recordId=${data.id}` )
 

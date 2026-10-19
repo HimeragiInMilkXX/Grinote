@@ -4,7 +4,8 @@ import { TableTaskRow, TableTaskRows, TaskNodeType } from "@/types/flow";
 import { createActionClient } from "@/utils/supabase/actions";
 import { createClient } from "@/utils/supabase/server";
 import { durationObjectToInterval, intervalToDurationObject } from "@/utils/utils";
-import { Edge, Node, ReactFlowJsonObject } from "@xyflow/react";
+import { Edge, ReactFlowJsonObject } from "@xyflow/react";
+import { updateTutorialProgress } from "../serverActions";
 
 const convertToTableFormat = ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => {
 
@@ -85,6 +86,9 @@ export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeTyp
         if (failedUpdate?.error) throw failedUpdate.error;
 
     }
+
+    await updateTutorialProgress(project_id, 1);
+
 }
 
 const convertToRfFormat = ( tableTaskRows: ({ time_limit: string } & TableTaskRow)[] ) => {
