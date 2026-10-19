@@ -22,6 +22,6 @@ export function useSyncedDuration( updated_at: Date | string, duration: number, 
 
     }, [updatedTime, duration, isRunning ])
 
-    return { startTimer: () => setIsRunning(true), pauseTimer: () => setIsRunning(false), elapsedMs }
+    return { startTimer: () => setIsRunning(true), pauseTimer: () => setIsRunning(false), elapsedMs, isRunning }
 
 }

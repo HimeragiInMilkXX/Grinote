@@ -27,7 +27,14 @@ export const redeemReward = async ( record_id: number, project_id: string, curre
     const { data: { user } } = await supabase.auth.getUser();
 
     const { data: record, error: updateBoolError } = await
-        supabase.from( "records" ).update( { reward_redeemed: true } ).eq( "id", record_id ).eq( "project_id", project_id ).eq( "user_id", user?.id ).eq( "status", "completed" )
+        supabase
+        .from( "records" )
+        .update( { reward_redeemed: true } )
+        .eq( "id", record_id )
+        .eq( "project_id", project_id )
+        .eq( "user_id", user?.id )
+        .eq( "status", "completed" )
+        .eq( "reward_redeemed", false )
         .select( "xp_change, resource_gained" ).single();
 
     if( updateBoolError ) throw updateBoolError.message;

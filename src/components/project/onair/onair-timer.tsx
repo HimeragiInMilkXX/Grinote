@@ -12,8 +12,9 @@ interface Props { activeTask: OnAirRecord }
 const OnAirTimer = ( { activeTask }: Props ) => {
 
     const [ task, setTask ] = useState<OnAirRecord>( activeTask );
+    const [ ended, setEnded ] = useState<boolean>(false);
 
-    const { startTimer, pauseTimer, elapsedMs } = useSyncedDuration( task.updated_at, task.duration, task.status );
+    const { startTimer, pauseTimer, elapsedMs, isRunning } = useSyncedDuration( task.updated_at, task.duration, task.status );
 
     const pause = async () => {
         setTask( await pauseTask( activeTask.id, activeTask.nodes!.id!, activeTask.project_id, elapsedMs ) )
@@ -28,6 +29,7 @@ const OnAirTimer = ( { activeTask }: Props ) => {
     const complete = async () => {
 
         pauseTimer();
+        setEnded( true )
         await completeTask( activeTask.id, activeTask.nodes!, activeTask.project_id, elapsedMs );
 
     }
@@ -35,6 +37,7 @@ const OnAirTimer = ( { activeTask }: Props ) => {
     const abandon = async () => {
 
         pauseTimer();
+        setEnded( true )
         await abandonTask( activeTask.id, activeTask.node_id, activeTask.project_id );
 
     }
@@ -44,15 +47,15 @@ const OnAirTimer = ( { activeTask }: Props ) => {
             <p className="text-2xl">{ getMsFormatted( elapsedMs ).minutes }:{ getMsFormatted( elapsedMs ).seconds }</p>
 
             {
-                
+
                 task.status === "active" ?
-                <Button onClick={pause}> 一時停止 </Button> :
-                <Button onClick={resume}> 再開 </Button>
+                <Button onClick={pause} disabled={!isRunning}> 一時停止 </Button> :
+                <Button onClick={resume} disabled={isRunning}> 再開 </Button>
 
             }
 
-            <Button onClick={complete}> 完成 </Button>
-            <Button onClick={abandon}> 諦める </Button>
+            <Button onClick={complete} disabled={ended}> 完成 </Button>
+            <Button onClick={abandon} disabled={ended}> 諦める </Button>
 
         </div>
     )
