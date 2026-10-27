@@ -29,6 +29,8 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
 
     const [ data, setData ] = useState<Task>(selectedNode.data.task)
 
+    const [ isStarting, setIsStarting ] = useState(false);
+
     useEffect( ( ) => {
 
         setData( selectedNode.data.task )
@@ -99,7 +101,7 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
             <CardFooter className="flex gap-1.5 items-center">
                 { (data.isAction && !data.isCompleted) ?
 
-                    <Button className="w-full bg-green-500 hover:bg-green-600" onClick={() => redirect(`/project/${project_id}/onair?nodeId=${selectedNode.id}`)}> スタート </Button> :
+                    <Button className="w-full bg-green-500 hover:bg-green-600" disabled={isStarting} onClick={() => { setIsStarting( true ); redirect(`/project/${project_id}/onair?nodeId=${selectedNode.id}`) }}> スタート </Button> :
                     <Button className="w-full" disabled> このノートは行動ではないです </Button>
 
                 }
