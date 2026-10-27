@@ -1,4 +1,4 @@
-import { RefObject } from "react";
+import { RefObject, useState } from "react";
 import { CharacterXPBarHandle } from "../../character-xp-bar";
 import ResourceBlock from "./resource-block";
 import { saveCharacterProgress } from "@/app/project/[projectId]/character/serverActions";
@@ -23,15 +23,17 @@ const ResourcesPanel = ( { project_id, projectResources, characterXP }: Resource
 
     }
 
+    const [ disabled, setDisabled ] = useState(false);
+
     return (
 
-        <div className="flex gap-3 items-center">
+        <div className={`flex gap-3 items-center ${disabled && 'pointer-events-none opacity-70'}`}>
 
             {
 
                 projectResources.map( ( res ) => (
 
-                    <ResourceBlock handleXPChange={handleXPChange} projectResource={res} key={res.id}/>
+                    <ResourceBlock handleXPChange={handleXPChange} projectResource={res} key={res.id} setDisabled={setDisabled}/>
 
                 ))
 

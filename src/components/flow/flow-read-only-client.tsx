@@ -110,7 +110,6 @@ const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, 
                 fitView>
                 <MiniMap />
                 <Background/>
-                <Controls position='top-right' />
 
                 <Panel position='top-right'>
 

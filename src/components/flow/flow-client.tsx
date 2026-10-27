@@ -343,15 +343,21 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const [ rfInstance, setRfInstance ] = useState<ReactFlowInstance<TaskNodeType, Edge>>();
 
+    const [ isSaving, setIsSaving ] = useState(false);
+
     const saveGraph = useCallback( async () => {
 
-        if( hasActiveTask ) return;
+        if( hasActiveTask || isSaving ) return;
 
         if( !rfInstance ) return;
 
         try {
 
+            setIsSaving(true)
+
             await saveGraphToNodes( rfInstance.toObject(), project_id );
+
+            toast.success("変更は保存されました！", { position: "top-left" });
 
             closeAllMenus();
             setRequiresSaveAction(false)
@@ -365,7 +371,9 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         }
 
-    }, [rfInstance, hasActiveTask, project_id, saveGraphToNodes, closeAllMenus ] )
+        setIsSaving( false );
+
+    }, [rfInstance, hasActiveTask, project_id, saveGraphToNodes, closeAllMenus, isSaving ] )
 
     const [ requiresSaveAction, setRequiresSaveAction ] = useState<boolean>(false);
 
@@ -400,7 +408,6 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                 fitView>
                 <MiniMap />
                 <Background/>
-                <Controls position='top-right' />
 
                 { menuPosition &&  <>
 

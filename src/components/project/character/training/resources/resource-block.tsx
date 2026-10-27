@@ -7,10 +7,11 @@ type ResourceBlockProps = {
 
     projectResource: ProjectResource;
     handleXPChange: ( xp: number, quantity: number ) => void;
+    setDisabled: ( value: boolean ) => void;
 
 }
 
-const ResourceBlock = ( {projectResource, handleXPChange}: ResourceBlockProps ) => {
+const ResourceBlock = ( { projectResource, handleXPChange, setDisabled }: ResourceBlockProps ) => {
 
     const { quantity, consumeResource } = useResource( projectResource, handleXPChange );
 
@@ -21,7 +22,11 @@ const ResourceBlock = ( {projectResource, handleXPChange}: ResourceBlockProps ) 
             "active:bg-gray-400 select-none cursor-pointer",
             )}
             style={{ backgroundImage: `url(/resources/${projectResource.resources?.name}.png)`}}
-            onClick={async () => await consumeResource()}
+            onClick={async () => {
+                setDisabled(true);
+                await consumeResource()
+                setDisabled(false)
+            }}
             >
 
             <p className="ml-1 text-left">{quantity}</p>
