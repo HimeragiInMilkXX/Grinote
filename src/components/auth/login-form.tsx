@@ -44,7 +44,7 @@ const LoginForm = () => {
             <CardHeader>
                 <CardTitle> ログイン </CardTitle>
                 <CardDescription> Grinote MVPを利用するには、アカウントが必要です </CardDescription>
-                <Link href="/signup" className="text-blue-500 underline text-xs"> アカウントを持っている方 </Link>
+                <Link href="/signup" className="text-blue-500 underline text-xs"> アカウントを持っていない方 </Link>
             </CardHeader>
 
             <CardContent>
