@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
+import PlainTextToolTip from "../miscellaneous/plain-text-tooltip";
 
 export interface ContextMenuProps {
 
@@ -28,15 +29,34 @@ const FlowContextMenu = ( { x, y, insertNewTask, layoutNodes, saveGraph, insertB
                 <CardTitle>グラフ操作</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1.5">
-                <div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={saveGraph}> 保存 </div>
-                <div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e)}> 新規タスク </div>
-                <div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, false, true)}> 新規行動 </div>
-                <div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, true, true)}> 新規繰り返し行動 </div>
-                <div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={layoutNodes}> グラフ整理 </div>
+
+                <PlainTextToolTip
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={saveGraph}> 保存 </div>}
+                    text="変更内容を保存"/>
+
+                <PlainTextToolTip
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e)}> 新規ノード </div>}
+                    text="レベル用のノード"/>
+
+                <PlainTextToolTip
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, false, true)}> 新規行動 </div>}
+                    text="一回だけ実行できるノード"/>
+
+                <PlainTextToolTip
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, true, true)}> 新規繰り返し行動 </div>}
+                    text="何回も実行できるノード"/>
+
+                <PlainTextToolTip
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={layoutNodes}> グラフ整理 </div>}
+                    text="グラフのレイアウトを整理（保存されない）"/>
 
                 {/* TEST FOR AGENT */}
                 <Dialog>
-                    <DialogTrigger><div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all"> データ入力 </div></DialogTrigger>
+                    <DialogTrigger render={
+                        <PlainTextToolTip
+                            children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all"> データ入力 </div>}
+                            text="JSONデータでノードとエッジを生成"/>
+                    }/>
                     <DialogContent>
                         <DialogHeader>
                         <DialogTitle> ノートとエッジのデータ張り付けてください </DialogTitle>

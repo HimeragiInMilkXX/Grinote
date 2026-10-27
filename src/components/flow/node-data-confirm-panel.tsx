@@ -10,6 +10,7 @@ import { Textarea } from "../ui/textarea";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { redirect } from "next/navigation";
+import { GripVertical } from "lucide-react";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -35,8 +36,9 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
     }, [ selectedNode ])
 
     return (
-        <Card className="min-w-100 shadow-xl opacity-80 [*]:select-none ">
-            <CardHeader onPointerDown={onPointerDown} className="cursor-grab active:cursor-grabbing">
+        <Card className="min-w-100 shadow-xl opacity-80 [*]:select-none pt-0">
+            <CardHeader onPointerDown={onPointerDown} className="relative cursor-grab active:cursor-grabbing pt-4 flex items-center">
+                <GripVertical className="select-none pointer-events-none stroke-gray-600! relative top-0.5"/>
                 <CardTitle className="text-3xl">タスク詳細</CardTitle>
             </CardHeader>
             <CardContent>
@@ -45,22 +47,22 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
 
                         <Field>
                             <FieldLabel> タスクネーム </FieldLabel>
-                            <Input value={data.task_name} readOnly placeholder="ちょっとだけでも、これを達成するぞ！" autoComplete="off" />
+                            <Input value={data.task_name} readOnly disabled placeholder="ちょっとだけでも、これを達成するぞ！" autoComplete="off" className="cursor-not-allowed"/>
                         </Field>
 
                         <Field>
                             <FieldLabel> ノード色 </FieldLabel>
-                            <Input value={data.bg_color} readOnly type="color" placeholder="かっこいいのを選ぼう！" autoComplete="off" />
+                            <Input value={data.bg_color} readOnly disabled type="color" placeholder="かっこいいのを選ぼう！" autoComplete="off" className="cursor-not-allowed"/>
                         </Field>
 
                         <Field>
                             <FieldLabel> テキスト色 </FieldLabel>
-                            <Input value={data.text_color} readOnly type="color" placeholder="かっこいいのを選ぼう！" autoComplete="off" />
+                            <Input value={data.text_color} readOnly disabled type="color" placeholder="かっこいいのを選ぼう！" autoComplete="off" className="cursor-not-allowed"/>
                         </Field>
 
                         <Field>
                             <FieldLabel> 説明 </FieldLabel>
-                            <Textarea value={data.description} readOnly className="max-h-[16vh]" placeholder="なし" autoComplete="off" />
+                            <Textarea value={data.description} readOnly disabled className="cursor-not-allowed max-h-[16vh]" placeholder="なし" autoComplete="off"/>
                         </Field>
 
                         { data.isAction &&
@@ -97,7 +99,7 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
             <CardFooter className="flex gap-1.5 items-center">
                 { (data.isAction && !data.isCompleted) ?
 
-                    <Button className="w-full" onClick={() => redirect(`/project/${project_id}/onair?nodeId=${selectedNode.id}`)}> スタート </Button> :
+                    <Button className="w-full bg-green-500 hover:bg-green-600" onClick={() => redirect(`/project/${project_id}/onair?nodeId=${selectedNode.id}`)}> スタート </Button> :
                     <Button className="w-full" disabled> このノートは行動ではないです </Button>
 
                 }

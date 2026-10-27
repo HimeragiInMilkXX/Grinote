@@ -32,7 +32,7 @@ export const lvAtom = atom(0);
 
 const CharacterXPBar = ( { ref, onInitialized = () => {}, character_level, character_xp, growth_step }: Props ) => {
 
-    const { isInitialized, onXPGained, level, xp, remainingXP, nextLevelRequiredXP, display } = useLevel(
+    const { isInitialized, onXPGained, display } = useLevel(
         ( lv: number, progress: number ) => {
 
             setLV( lv );

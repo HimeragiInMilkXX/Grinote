@@ -4,7 +4,6 @@ import { OnAirRecord } from "@/types/records";
 import OnAirTimer from "@/components/project/onair/onair-timer";
 import OnAirCharacter from "@/components/project/character/onair-character";
 import { getProject } from "@/lib/projects";
-import { updateTutorialProgress } from "../serverActions";
 
 type Props = {
 
@@ -28,7 +27,6 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
 
         if( activeTask ) {
 
-            console.log("There is another ongoing task")
             redirect(`/project/${projectId}/onair`)
 
         } else {
@@ -36,7 +34,6 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
             try {
 
                 activeTask = await startTask( nodeId!, projectId );
-                await updateTutorialProgress(projectId, 2);
 
             } catch( e: any ) {
 
@@ -44,9 +41,6 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
                 redirect(`/project/${projectId}/tree/pick`)
 
             }
-
-            console.log("Task started");
-            console.log( activeTask );
 
         }
 
@@ -56,7 +50,6 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
 
     if( !activeTask ) {
 
-        console.log("No task is on air")
         redirect(`/project/${projectId}/tree/pick`)
 
     }

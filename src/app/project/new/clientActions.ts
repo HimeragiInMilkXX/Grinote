@@ -10,8 +10,6 @@ import { createClient } from "@/utils/supabase/client"
 
 export async function handlePickCharacter( pickedId: number ) {
 
-    console.log( pickedId )
-
     updateNewProjectAtomValue( { character_id: pickedId } )
     redirect( "/project/new/details" )
 

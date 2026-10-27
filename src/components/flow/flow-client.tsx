@@ -14,6 +14,7 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { getActiveTask } from '@/app/project/[projectId]/onair/serverActions';
 import { updateTutorialProgress } from '@/app/project/[projectId]/serverActions';
+import { toast } from 'sonner';
 
 // ADD NEW CUSTOM NODE TYPE
 const nodeTypes = {
@@ -26,7 +27,7 @@ interface FlowClientProps {
     initialEdges: Edge[];
     project_id: string;
     getLayoutedElements: ( nodes: TaskNodeType[], edges: Edge[] ) => any
-    saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => void;
+    saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => Promise<void>;
 
 }
 
@@ -283,7 +284,7 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         layoutNodes();
 
-        updateTutorialProgress(project_id, 0);
+        updateTutorialProgress(project_id, 0).then( res => { if(res) toast.success("「目標ツリーを確認・編集する」達成！次はそれを保存しよう！", { position: "top-left" }) } );
 
     }
 
@@ -325,7 +326,7 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         setShowEditor( true );
 
-        updateTutorialProgress(project_id, 0);
+        updateTutorialProgress(project_id, 0).then( res => { if(res) toast.success("「目標ツリーを確認・編集する」達成！次はそれを保存しよう！", { position: "top-left" }) } );
 
     }
 
@@ -342,17 +343,29 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const [ rfInstance, setRfInstance ] = useState<ReactFlowInstance<TaskNodeType, Edge>>();
 
-    const saveGraph = useCallback( () => {
+    const saveGraph = useCallback( async () => {
 
         if( hasActiveTask ) return;
 
-        if( rfInstance ) saveGraphToNodes( rfInstance.toObject(), project_id );
+        if( !rfInstance ) return;
 
-        closeAllMenus();
+        try {
 
-        setRequiresSaveAction(false)
+            await saveGraphToNodes( rfInstance.toObject(), project_id );
 
-    }, [rfInstance, hasActiveTask ] )
+            closeAllMenus();
+            setRequiresSaveAction(false)
+
+            const tutorialUpdated = await updateTutorialProgress(project_id, 1);
+            if( tutorialUpdated ) toast.success("「ツリーを保存する」達成！次はタスク一つ開始しよう！", { position: "top-left" });
+
+        } catch {
+
+            toast.error("保存に失敗しました。もう一度お試しください。", { position: "top-left" });
+
+        }
+
+    }, [rfInstance, hasActiveTask, project_id, saveGraphToNodes, closeAllMenus ] )
 
     const [ requiresSaveAction, setRequiresSaveAction ] = useState<boolean>(false);
 
@@ -396,7 +409,7 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
                 </>}
 
-                <Panel position='top-left'>
+                <Panel position='top-right'>
 
                     { showEditor && selectedNode ?
                         <motion.div

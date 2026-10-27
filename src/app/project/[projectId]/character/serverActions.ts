@@ -8,9 +8,8 @@ export const saveCharacterProgress = async ( project_id: string, new_level: numb
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: project, error: updateCharError } = await
+    const { error: updateCharError } = await
         supabase.from( "projects" ).update( { character_xp: new_xp, character_level: new_level } ).eq( "id", project_id ).eq( "user_id", user?.id )
-        .select( "*" ).single();
     
     if( updateCharError ) throw updateCharError.message;
 
@@ -73,7 +72,7 @@ export const updateResource = async ( project_id: string, resource_gained: Recor
     const projectResources: ProjectResource[] = await getProjectResources( project_id );
 
     // MAKE THE LIST FOR UPSERT, ADD QUANTITY TO EXISTING, RETURN NEW OBJECT FOR NONEXISTING
-    const resourceUpsertList = Object.entries( resource_gained ).map( ( [ resource_id, quantity ], index ) => {
+    const resourceUpsertList = Object.entries( resource_gained ).map( ( [ resource_id, quantity ] ) => {
 
         const existingRow = projectResources.find( res => res.resource_id == Number(resource_id) )
 
@@ -98,8 +97,6 @@ export const updateResource = async ( project_id: string, resource_gained: Recor
         }
 
     })
-
-    console.log( resourceUpsertList )
 
     const { error } = await
         supabase.from("project_resources")

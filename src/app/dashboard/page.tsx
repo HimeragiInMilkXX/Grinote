@@ -6,14 +6,17 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { hasDoneIntroduction } from "./serverActions";
 import ApproachTutorialDialog from "@/components/tutorial/approach/approach-tutorial-dialog";
+import { redirectIfNotAuthenticated } from "@/utils/redirectIfNotAuthenticated";
 
 const Dashboard = async () => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await redirectIfNotAuthenticated( "/login" );
     
     const { data: projects, error: projectError } = await supabase.from('projects').select('*, characters ( * )').eq("user_id", user?.id)
+
+    if( projectError ) throw projectError;
 
     const isIntroductionDone = await hasDoneIntroduction();
 

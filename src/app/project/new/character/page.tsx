@@ -6,6 +6,9 @@ const NewProjectCharacterDefPage = async () => {
     const supabase = await createClient();
 
     const { data: characters, error } = await supabase.from( 'characters' ).select( "id, name, group, description" )
+
+    if( error ) throw error;
+
     return (
 
         <NewProjectCharacterPanel characters={characters}/>

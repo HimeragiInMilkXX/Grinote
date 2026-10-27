@@ -5,7 +5,6 @@ import { createActionClient } from "@/utils/supabase/actions";
 import { createClient } from "@/utils/supabase/server";
 import { durationObjectToInterval, intervalToDurationObject } from "@/utils/utils";
 import { Edge, ReactFlowJsonObject } from "@xyflow/react";
-import { updateTutorialProgress } from "../serverActions";
 
 const convertToTableFormat = ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => {
 
@@ -87,8 +86,6 @@ export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeTyp
 
     }
 
-    await updateTutorialProgress(project_id, 1);
-
 }
 
 const convertToRfFormat = ( tableTaskRows: ({ time_limit: string } & TableTaskRow)[] ) => {
@@ -156,6 +153,8 @@ export const fetchGraph = async ( project_id: string ) => {
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
+
+    if( !user ) throw new Error( "Not logged in" );
 
     const { data: nodes, error: nodesError } = await supabase.from('nodes').select('*').eq( "project_id", project_id );
 

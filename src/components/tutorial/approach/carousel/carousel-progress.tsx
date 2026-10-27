@@ -21,7 +21,7 @@ export default function CarouselProgress( { count, current, reset, next, action 
 
             { current + 1 < count ? <div className="flex gap-2 items-center">
                 {
-                    Array.from( { length: count }, ( value, index ) => {
+                    Array.from( { length: count }, ( _, index ) => {
                         return (
                             <div className={`${current === index ? 'bg-gray-500' : 'bg-gray-300/75'} box-border w-3.5 aspect-square rounded-full`} key={String(index)}></div>
                         )

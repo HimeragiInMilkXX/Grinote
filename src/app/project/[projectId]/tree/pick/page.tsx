@@ -1,4 +1,4 @@
-import { fetchGraph, saveGraphToNodes } from "../serverActions";
+import { fetchGraph } from "../serverActions";
 import { getLayoutedElements } from "../clientActions";
 import { ReactFlowProvider } from "@xyflow/react";
 import FlowReadOnlyClient from "@/components/flow/flow-read-only-client";
@@ -14,7 +14,6 @@ const ProjectPageTreeEdit = async ( { params }: { params: any } ) => {
 
     if( activeTask ) {
 
-        console.log("There is another ongoing task")
         redirect(`/project/${projectId}/onair`)
 
     }
@@ -23,7 +22,7 @@ const ProjectPageTreeEdit = async ( { params }: { params: any } ) => {
 
     return (
         <ReactFlowProvider>
-            <FlowReadOnlyClient initialNodes={nodes} initialEdges={edges} getLayoutedElements={getLayoutedElements} saveGraphToNodes={saveGraphToNodes} project_id={projectId}/>
+            <FlowReadOnlyClient initialNodes={nodes} initialEdges={edges} getLayoutedElements={getLayoutedElements} project_id={projectId}/>
         </ReactFlowProvider>
     )
 }

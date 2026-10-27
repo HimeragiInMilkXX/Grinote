@@ -14,6 +14,7 @@ import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
+import { GripVertical } from "lucide-react";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -121,8 +122,9 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
     }, [ selectedNode ])
 
     return (
-        <Card className="min-w-100 shadow-xl opacity-80 [*]:select-none ">
-            <CardHeader onPointerDown={onPointerDown} className="cursor-grab active:cursor-grabbing">
+        <Card className="min-w-100 shadow-xl opacity-80 [*]:select-none relative p-0">
+            <CardHeader onPointerDown={onPointerDown} className="relative cursor-grab active:cursor-grabbing pt-4 flex items-center">
+                <GripVertical className="select-none pointer-events-none stroke-gray-600! top-0.5 relative"/>
                 <CardTitle className="text-3xl">タスク詳細</CardTitle>
             </CardHeader>
             <CardContent>
@@ -201,7 +203,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
                                 name="isAction"
                                 control={form.control}
                                 disabled={!isEditing}
-                                render={ ( { field, fieldState } ) => (
+                                render={ ( { field } ) => (
 
                                         <Checkbox
 
@@ -254,7 +256,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
                                             name="isLoop"
                                             control={form.control}
                                             disabled={!isEditing}
-                                            render={({ field, fieldState }) => (
+                                            render={({ field }) => (
 
                                                     <Checkbox
 
@@ -285,15 +287,15 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
                 </form>
             </CardContent>
             <CardFooter className="flex gap-1.5 items-center">
-                <Button className="basis-0 grow" type="button" disabled={!isEditing}　onClick={() => setIsEditing(false)}> 取消 </Button>
+                <Button className="basis-0 grow bg-red-300 text-black hover:bg-red-400" type="button" disabled={!isEditing}　onClick={() => setIsEditing(false)}> 取消 </Button>
                 {
                     (!isEditing) ?
-                        <Button type="button" className="basis-0 grow"   onClick={(event) => {
+                        <Button type="button" className="basis-0 grow bg-blue-500 hover:bg-blue-600"   onClick={(event) => {
                             event.preventDefault()
                             event.stopPropagation()
                             setIsEditing(true)
                         }}> 編集 </Button>
-                        : <Button type="submit" form="node-details-form" className="basis-0 grow"> { isSubmitting ? "送信中..." : "保存" } </Button>
+                        : <Button type="submit" form="node-details-form" className="basis-0 grow bg-green-500 hover:bg-green-600"> { isSubmitting ? "送信中..." : "保存" } </Button>
                 }
             </CardFooter>
         </Card>

@@ -6,6 +6,8 @@ import CharacterXPBar, { CharacterXPBarHandle } from "./character-xp-bar";
 import { saveCharacterProgress } from "@/app/project/[projectId]/character/serverActions";
 import { redeemReward } from "@/app/project/[projectId]/task_complete/serverActions";
 import { OnAirRecord } from "@/types/records";
+import { updateTutorialProgress } from "@/app/project/[projectId]/serverActions";
+import { toast } from "sonner";
 
 const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { record: OnAirRecord, project: Project, characterLevelChanges: CharacterLevelChanges }) => {
 
@@ -14,6 +16,12 @@ const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { re
     const characterXPBarRef = useRef<CharacterXPBarHandle>(null);
 
     const rewardDisplayed = useRef<boolean>(false);
+
+    useEffect( () => {
+
+        updateTutorialProgress(project.id, 3).then( ( res ) => {if( res ) toast.success("「タスクを完了する」達成！次はキャラを確認しよう！", { position: "top-left" })} )
+
+    }, [])
 
     const onRiveReady = useCallback( () => {
 

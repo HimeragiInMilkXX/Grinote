@@ -57,7 +57,6 @@ const ProjectDashboardProgressPanel = ( { project }: Props ) => {
                         key={i}
                         today={today}
                         date={weekDates[i]}
-                        day={i+1}
                         label={WEEKDAYS[i]}
                         isWorkDay={value}
                         project_id={project.id}

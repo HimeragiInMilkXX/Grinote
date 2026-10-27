@@ -8,7 +8,6 @@ type Props = {
 
     today: Date;
     date: Date;
-    day: number;
     label: string;
     isWorkDay: boolean;
     project_id: string;
@@ -16,7 +15,7 @@ type Props = {
 
 }
 
-const ProgressPanelDayCard = ( { project_id, today, date, day, label, isWorkDay, startDate }: Props ) => {
+const ProgressPanelDayCard = ( { project_id, today, date, label, isWorkDay, startDate }: Props ) => {
 
     const [ records, setRecords ] = useState<OnAirRecord[]>([])
 

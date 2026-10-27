@@ -1,15 +1,28 @@
 "use client"
 
 import RiveCharacter, { RiveCharacterHandle } from '@/components/rive/rive-character';
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import CharacterXPBar, { CharacterXPBarHandle } from '../character-xp-bar';
 import CharacterGrowthStep from '../character-growth-step';
 import ResourcesPanel from './resources/resources-panel';
+import { updateTutorialProgress } from '@/app/project/[projectId]/serverActions';
+import { toast } from 'sonner';
 
-const CharacterTrainingDisplay = ( { project, projectResources }: { project: Project, projectResources: ProjectResource[] }) => {
+const CharacterTrainingDisplay = ( { project, projectResources }: { project: Project, projectResources: ProjectResource[]}) => {
 
     const riveCharacterRef = useRef<RiveCharacterHandle>(null);
     const characterXPBarRef = useRef<CharacterXPBarHandle>(null);
+
+    useEffect( () => {
+
+        updateTutorialProgress(project.id, 4).then( ( res ) => {
+            if( res ) {
+                toast.success("「進捗を確認する」達成！", { position: "top-left" })
+                toast.success("オンボーディング完了！リソース報酬どーぞ（リフレッシュ必要）", { position: "top-left" })
+            }
+        } )
+
+    }, [project.id])
 
     const onMouseDown = () => {
 

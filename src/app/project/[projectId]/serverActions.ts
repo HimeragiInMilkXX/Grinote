@@ -19,12 +19,14 @@ export const updateTutorialProgress = async ( project_id: string, index: number 
 
     if( previousProgressError ) throw previousProgressError.message;
 
-    if( previousProgress.tutorial_progress[index] ) return;
+    if( previousProgress.tutorial_progress[index] ) return false;
 
     // Check if the previous is done, then update
-    let newProgress = previousProgress.tutorial_progress;
+    const newProgress = previousProgress.tutorial_progress;
 
-    if( newProgress[ index - 1 ] || index - 1 < 0 ) newProgress[index] = true;
+    if( !( newProgress[ index - 1 ] || index - 1 < 0 ) ) return false;
+
+    newProgress[index] = true;
 
     const { error: updateError } = await supabase
         .from( "projects" )
@@ -36,5 +38,7 @@ export const updateTutorialProgress = async ( project_id: string, index: number 
 
     if( newProgress[newProgress.length - 1] )
         await updateResource( project_id, {"1": 1, "2": 1, "3": 1} )
+
+    return true
 
 }

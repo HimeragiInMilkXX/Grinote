@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Carousel, CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { Carousel, CarouselApi, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import Image from "next/image";
 import { useEffect, useImperativeHandle, useState } from "react";
 
@@ -78,6 +78,8 @@ const CharacterPickCarousel = ( { ref, characters }: CharacterPickCarouselProps 
                     </CarouselItem>
                 ))}
             </CarouselContent>
+            <CarouselPrevious className="-left-3"/>
+            <CarouselNext className="-right-3"/>
         </Carousel>
     )
 }

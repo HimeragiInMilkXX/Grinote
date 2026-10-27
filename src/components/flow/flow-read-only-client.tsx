@@ -1,8 +1,7 @@
 "use client"
 
-import TaskNode from '@/components/flow/task-node';
 import { TaskNodeType } from '@/types/flow';
-import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, MiniMap, Edge, NodeMouseHandler, Panel, ReactFlowJsonObject } from '@xyflow/react';
+import { useNodesInitialized, ReactFlow, Background, Controls, useNodesState, useEdgesState, MiniMap, Edge, NodeMouseHandler, Panel } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useDragControls, motion } from "motion/react"
 import { useCallback, useEffect, useState } from 'react';
@@ -11,10 +10,11 @@ import NodeDataConfirmPanel from './node-data-confirm-panel';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { redirect } from 'next/navigation';
+import TaskNodePick from './task-node-pick';
 
 // ADD NEW CUSTOM NODE TYPE
 const nodeTypes = {
-    taskNode: TaskNode
+    taskNode: TaskNodePick
 }
 
 interface FlowReadOnlyClientProps {
@@ -23,11 +23,9 @@ interface FlowReadOnlyClientProps {
     initialEdges: Edge[];
     project_id: string;
     getLayoutedElements: ( nodes: TaskNodeType[], edges: Edge[] ) => any
-    saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => void;
-
 }
 
-const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGraphToNodes, project_id }: FlowReadOnlyClientProps ) => {
+const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, project_id }: FlowReadOnlyClientProps ) => {
 
     const nodesInitialized = useNodesInitialized();
 
@@ -114,7 +112,7 @@ const FlowReadOnlyClient = ( { initialNodes, initialEdges, getLayoutedElements, 
                 <Background/>
                 <Controls position='top-right' />
 
-                <Panel position='top-left'>
+                <Panel position='top-right'>
 
                     { showEditor && selectedNode ?
                         <motion.div

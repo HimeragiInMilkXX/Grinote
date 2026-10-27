@@ -116,7 +116,7 @@ const NewProjectDetailsForm = () => {
                             control={form.control}
                             render={ ( { field, fieldState } ) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="new-project-details-form-name"> コードネーム </FieldLabel>
+                                    <FieldLabel htmlFor="new-project-details-form-name"> プロジェクト名 </FieldLabel>
                                     <Input { ...field } id="new-project-details-form-name" aria-invalid={fieldState.invalid} placeholder="これを達成するぞ！" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />

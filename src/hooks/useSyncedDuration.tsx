@@ -6,7 +6,7 @@ export function useSyncedDuration( updated_at: Date | string, duration: number, 
 
     const [ isRunning, setIsRunning ] = useState( status === "active" );
 
-    const [ elapsedMs, setElapsedMs ] = useState(0);
+    const [ elapsedMs, setElapsedMs ] = useState(duration);
 
     const updatedTime = new Date( updated_at ).getTime();
 

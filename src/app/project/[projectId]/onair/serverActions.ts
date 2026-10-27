@@ -6,7 +6,6 @@ import { createActionClient } from "@/utils/supabase/actions";
 import { createClient } from "@/utils/supabase/server";
 import { intervalToDurationObject } from "@/utils/utils";
 import { redirect } from "next/navigation";
-import { updateTutorialProgress } from "../serverActions";
 
 export const getActiveTask = async ( project_id: string ): Promise<OnAirRecord | null> => {
 
@@ -170,7 +169,7 @@ export const completeTask = async ( record_id: number, node: TableTaskRow, proje
 
     const resource_gained: Record<string, number> = { 1: 1, 2: 1, 3: 1 };
 
-    const { data, error: recordError } = await supabase.from("records").update({ status: "completed", duration, completed_at: new Date(), xp_change: xp_change, resource_gained: resource_gained, reward_redeemed: false }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).eq("status", "active").select("id").single();
+    const { data, error: recordError } = await supabase.from("records").update({ status: "completed", duration, completed_at: new Date(), xp_change: xp_change, resource_gained: resource_gained, reward_redeemed: false }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).in("status", ["active", "paused"]).select("id").single();
 
     if( recordError ) throw recordError.message;
 
@@ -189,8 +188,6 @@ export const completeTask = async ( record_id: number, node: TableTaskRow, proje
         if( nodeError ) throw nodeError.message;
 
     }
-
-    await updateTutorialProgress(project_id, 3);
 
     redirect( `/project/${project_id}/task_complete?recordId=${data.id}` )
 
