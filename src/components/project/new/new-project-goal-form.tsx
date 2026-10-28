@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Field, FieldError, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form"
 import z from "zod/v4"
 
@@ -28,7 +29,7 @@ const NewProjectGoalForm = () => {
 
     })
 
-    const { isSubmitting } = form.formState;
+    const [ disabled, setDisabled ] = useState(false);
 
     return (
         <Card className="w-full sm:max-w-md">
@@ -39,7 +40,7 @@ const NewProjectGoalForm = () => {
 
             <CardContent>
 
-                <form id="new-project-goal-form" onSubmit={form.handleSubmit(handleGoalDef)}>
+                <form id="new-project-goal-form" onSubmit={() => {form.handleSubmit(handleGoalDef); setDisabled(true)}}>
 
                     <FieldGroup>
                         <Controller
@@ -61,7 +62,7 @@ const NewProjectGoalForm = () => {
             </CardContent>
 
             <CardFooter>
-                <Button type="submit" form="new-project-goal-form" className="w-full" disabled={isSubmitting}> { isSubmitting ? "送信中..." : "次へ" } </Button>
+                <Button type="submit" form="new-project-goal-form" className="w-full" disabled={disabled}> { disabled ? "送信中..." : "次へ" } </Button>
             </CardFooter>
 
         </Card>

@@ -51,6 +51,8 @@ const SignupForm = () => {
 
     }
 
+    const { isSubmitting } = form.formState
+
     return (
 
         <Card className="w-full sm:max-w-md">
@@ -101,7 +103,7 @@ const SignupForm = () => {
             </CardContent>
 
             <CardFooter>
-                <Button type="submit" form="signup-form" className="w-full"> 作成 </Button>
+                <Button type="submit" form="signup-form" className="w-full" disabled={isSubmitting}> { isSubmitting ? "送信中..." : "次へ" } </Button>
             </CardFooter>
 
         </Card>

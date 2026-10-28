@@ -23,7 +23,8 @@ type Resource = {
     id: string;
     type: "food" | "sweet" | "drink",
     xp: number;
-    name: string
+    name: string,
+    description: string
 
 }
 

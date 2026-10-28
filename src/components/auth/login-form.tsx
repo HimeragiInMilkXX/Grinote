@@ -31,6 +31,8 @@ const LoginForm = () => {
 
     } )
 
+    const { isSubmitting } = form.formState;
+
     async function onSubmit( data: z.infer<typeof loginFormSchema> ) {
 
         await login( data );
@@ -81,7 +83,7 @@ const LoginForm = () => {
             </CardContent>
 
             <CardFooter>
-                <Button type="submit" form="login-form" className="w-full"> ログイン </Button>
+                <Button type="submit" form="login-form" className="w-full" disabled={isSubmitting}> { isSubmitting ? "送信中..." : "次へ" } </Button>
             </CardFooter>
 
         </Card>

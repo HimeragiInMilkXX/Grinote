@@ -35,15 +35,15 @@ const FlowContextMenu = ( { x, y, insertNewTask, layoutNodes, saveGraph, insertB
                     text="変更内容を保存"/>
 
                 <PlainTextToolTip
-                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e)}> 新規ノード </div>}
-                    text="レベル用のノード"/>
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e)}> 新規レーベルノード </div>}
+                    text="レーベル用のノード"/>
 
                 <PlainTextToolTip
-                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, false, true)}> 新規行動 </div>}
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, false, true)}> 新規行動ノード </div>}
                     text="一回だけ実行できるノード"/>
 
                 <PlainTextToolTip
-                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, true, true)}> 新規繰り返し行動 </div>}
+                    children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all" onClick={(e) => insertNewTask(e, true, true)}> 新規繰り返し行動ノード </div>}
                     text="何回も実行できるノード"/>
 
                 <PlainTextToolTip

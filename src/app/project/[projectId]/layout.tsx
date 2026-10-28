@@ -1,4 +1,5 @@
 import ProjectNavigation from "@/components/navigation/project-navigation";
+import ProjectTutorialPanel from "@/components/tutorial/project/project-tutorial-panel";
 import { getProject } from "@/lib/projects";
 import { redirectIfNotAuthenticated } from "@/utils/redirectIfNotAuthenticated";
 import { redirect } from "next/navigation";
@@ -9,9 +10,11 @@ export default async function ProjectPageLayout({ children, params }: LayoutProp
 
 	const { projectId } = await params;
 
+	let project: Project;
+
 	try {
 
-		await getProject( projectId );
+		project = await getProject( projectId );
 
 	} catch( e: any ) {
 
@@ -20,10 +23,24 @@ export default async function ProjectPageLayout({ children, params }: LayoutProp
 
 	}
 
+    let isTutorialCompleted = true;
+
+    for( const step of project.tutorial_progress ) {
+
+        if( !step ) {
+
+            isTutorialCompleted = false;
+            break;
+
+        }
+
+    }
+
 	return (
 		<main className="flex items-center justify-center h-screen">
 			<ProjectNavigation projectId={projectId}/>
             {children}
+			{ !isTutorialCompleted && <ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw]" project_id={projectId} tutorial_progress={project.tutorial_progress}/> }
         </main>
 	);
 }

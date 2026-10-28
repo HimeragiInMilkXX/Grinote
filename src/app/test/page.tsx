@@ -1,9 +1,11 @@
+import TestXPBar from "@/components/test/xp-bar"
+
 const TestPage = () => {
 
     return (
 
         <>
-        
+
             
 
         </>

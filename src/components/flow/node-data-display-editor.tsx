@@ -82,7 +82,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
 
     })
 
-    const [ isEditing, setIsEditing ] = useState<boolean>(false)
+    const [ isEditing, setIsEditing ] = useState<boolean>(true)
     const { isSubmitting } = form.formState;
 
     const { updateNode } = useReactFlow();
@@ -115,7 +115,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
 
     useEffect( ( ) => {
 
-        setIsEditing( false );
+        setIsEditing( true );
         form.reset( selectedNode.data.task );
         form.setValues( selectedNode.data.task )
 

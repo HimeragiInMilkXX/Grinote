@@ -299,9 +299,9 @@ const FlowClient = ( { initialNodes, initialEdges, getLayoutedElements, saveGrap
             id: crypto.randomUUID(),
             position: screenToFlowPosition({ x: e.clientX, y: e.clientY }),
             selected: true,
-            data: { label: isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "タスク", task: {
+            data: { label: isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "レーベル", task: {
 
-                task_name: isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "タスク",
+                task_name: isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "レーベル",
                 bg_color: "#FFFFFF",
                 text_color: "#000000",
                 description: "",

@@ -36,7 +36,6 @@ const ProjectPageDashboard = async ( { params }: { params: any }) => {
                 <ProjectDashboardProgressPanel project={project}/>
                 <ProjectDashboardTaskRecordDialog records={records}/>
             </div>
-            { !isTutorialCompleted && <ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw]" project_id={projectId} tutorial_progress={project.tutorial_progress}/> }
         </div>
     )
 }

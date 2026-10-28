@@ -33,7 +33,7 @@ const ResourcesPanel = ( { project_id, projectResources, characterXP }: Resource
 
                 projectResources.map( ( res ) => (
 
-                    <ResourceBlock handleXPChange={handleXPChange} projectResource={res} key={res.id} setDisabled={setDisabled}/>
+                    ( res.quantity > 0 && <ResourceBlock handleXPChange={handleXPChange} projectResource={res} key={res.id} setDisabled={setDisabled}/>)
 
                 ))
 
