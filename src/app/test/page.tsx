@@ -1,4 +1,4 @@
-import TestXPBar from "@/components/test/xp-bar"
+import PasswordInput from "@/components/miscellaneous/password-input"
 
 const TestPage = () => {
 
@@ -6,7 +6,7 @@ const TestPage = () => {
 
         <>
 
-            
+            <PasswordInput/>
 
         </>
 

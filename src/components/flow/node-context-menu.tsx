@@ -20,7 +20,7 @@ const NodeContextMenu = ( { x, y, startViewing, deleteNode, duplicateNode }: Nod
                 <CardTitle>タスク操作</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1.5">
-                <Button variant="ghost" className="justify-start" onClick={startViewing}> 詳細 </Button>
+                <Button variant="ghost" className="justify-start" onClick={startViewing}> 編集 </Button>
                 <Button variant="ghost" className="justify-start" onClick={deleteNode}> 削除 </Button>
                 <Button variant="ghost" className="justify-start" onClick={duplicateNode}> 複製 </Button>
             </CardContent>

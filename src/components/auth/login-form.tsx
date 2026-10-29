@@ -9,6 +9,7 @@ import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "../ui/button"
 import Link from "next/link";
+import PasswordInput from "../miscellaneous/password-input";
 
 export const loginFormSchema = z.object({
 
@@ -71,7 +72,7 @@ const LoginForm = () => {
                             render={ ( { field, fieldState } ) => (
                                 <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel htmlFor="login-form-password"> パスワード </FieldLabel>
-                                    <Input { ...field } id="login-form-password" type="password" aria-invalid={fieldState.invalid} placeholder="●●●●●●●●" autoComplete="off" />
+                                    <PasswordInput { ...field } id="login-form-password" type="password" aria-invalid={fieldState.invalid} placeholder="●●●●●●●●" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
                                     )}

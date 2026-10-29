@@ -9,6 +9,7 @@ import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card"
 import { Button } from "../ui/button"
 import Link from "next/link";
+import PasswordInput from "../miscellaneous/password-input";
 
 export const signupFormSchema = z.object({
 
@@ -91,7 +92,7 @@ const SignupForm = () => {
                                         <li> 数字を1文字以上含めてください </li>
                                         <li> 記号を1文字以上含めてください </li>
                                     </ul>
-                                    <Input { ...field } id="signup-form-password" type="password" aria-invalid={fieldState.invalid} placeholder="●●●●●●●●" autoComplete="off" />
+                                    <PasswordInput { ...field } id="signup-form-password" type="password" aria-invalid={fieldState.invalid} placeholder="●●●●●●●●" autoComplete="off" />
                                     { fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />
                                     )}
