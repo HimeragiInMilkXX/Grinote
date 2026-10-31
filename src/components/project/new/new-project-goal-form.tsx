@@ -40,7 +40,7 @@ const NewProjectGoalForm = () => {
 
             <CardContent>
 
-                <form id="new-project-goal-form" onSubmit={() => {form.handleSubmit(handleGoalDef); setDisabled(true)}}>
+                <form id="new-project-goal-form" onSubmit={form.handleSubmit( data => { setDisabled( true ); return handleGoalDef(data); })}>
 
                     <FieldGroup>
                         <Controller

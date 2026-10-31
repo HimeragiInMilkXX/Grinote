@@ -33,7 +33,7 @@ const ProgressPanelDayCard = ( { project_id, today, date, label, isWorkDay, star
             onClick={() => {
 
                 if( !isSameDay( today, date ) ) return;
-                redirect( `/project/${project_id}/tree/pick` )
+                redirect( `/project/${project_id}/tree?isInitialEditMode=false` )
 
             }}>
             <div className="w-full justify-between flex items-center">

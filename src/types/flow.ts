@@ -25,6 +25,8 @@ export interface TableTaskRow extends Task {
     id: string;
     parent_node_id: string | null;
     project_id: string;
+    pos_x: number;
+    pos_y: number;
 
 }
 

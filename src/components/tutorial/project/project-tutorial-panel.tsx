@@ -58,21 +58,21 @@ export default function ProjectTutorialPanel( { className = "", project_id, tuto
                         <StepLine
                             step="目標ツリーを確認・編集する"
                             isCompleted={tutorial_progress[0]}
-                            destination={`/project/${project_id}/tree/edit`}
+                            destination={`/project/${project_id}/tree?isInitialEditMode=true`}
                             isAvailable={0 <= currentStep}
                         />
 
                         <StepLine
                             step="ツリーを保存する"
                             isCompleted={tutorial_progress[1]}
-                            destination={`/project/${project_id}/tree/edit`}
+                            destination={`/project/${project_id}/tree?isInitialEditMode=true`}
                             isAvailable={1 <= currentStep}
                         />
 
                         <StepLine
                             step="タスクを1つ開始する"
                             isCompleted={tutorial_progress[2]}
-                            destination={`/project/${project_id}/tree/pick`}
+                            destination={`/project/${project_id}/tree?isInitialEditMode=false`}
                             isAvailable={2 <= currentStep}
                         />
 

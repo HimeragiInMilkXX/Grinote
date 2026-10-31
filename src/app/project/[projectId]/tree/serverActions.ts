@@ -17,6 +17,8 @@ const convertToTableFormat = ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>,
             id: node.id,
             parent_node_id: null,
             project_id: project_id,
+            pos_x: node.position.x,
+            pos_y: node.position.y,
             ...node.data.task,
 
         }
@@ -98,10 +100,10 @@ const convertToRfFormat = ( tableTaskRows: ({ time_limit: string } & TableTaskRo
         convertedNodes.push( {
 
             id: row.id,
-            position: { x: 0, y: 0 },
+            position: { x: row.pos_x, y: row.pos_y },
             connectable: !row.isCompleted && !row.isRoot,
             selectable: !row.isCompleted && !row.isRoot,
-            draggable: !row.isCompleted && !row.isRoot,
+            draggable: (row.isCompleted || row.isRoot) ? false : undefined,
             data: {
 
                 label: row.task_name,

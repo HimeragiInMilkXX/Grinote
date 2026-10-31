@@ -25,11 +25,7 @@ const NewProjectCharacterPanel = ( { characters }: {
 
         setIsSubmitting( true );
 
-        try {
-
-            await handlePickCharacter( pickCarouselRef.current?.getPickedCharacterId() ?? 1 )
-
-        } catch( e ) { console.log( e ) }
+        await handlePickCharacter( pickCarouselRef.current?.getPickedCharacterId() ?? 1 )
 
     }
 

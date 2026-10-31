@@ -38,7 +38,7 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
             } catch( e: any ) {
 
                 console.log( e.message );
-                redirect(`/project/${projectId}/tree/pick`)
+                redirect(`/project/${projectId}/tree?isInitialEditMode=false`)
 
             }
 
@@ -50,7 +50,7 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
 
     if( !activeTask ) {
 
-        redirect(`/project/${projectId}/tree/pick`)
+        redirect(`/project/${projectId}/tree?isInitialEditMode=false`)
 
     }
 

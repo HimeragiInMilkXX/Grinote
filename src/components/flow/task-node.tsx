@@ -3,7 +3,7 @@ import { Handle, NodeProps, Position } from "@xyflow/react"
 import { Repeat, StickyNote, Check } from 'lucide-react';
 import PlainTextToolTip from "../miscellaneous/plain-text-tooltip";
 
-const TaskNode = ( { data }: NodeProps<TaskNodeType> ) => {
+const TaskNode = ( { data, draggable: isEditing }: NodeProps<TaskNodeType> ) => {
     return (
         <PlainTextToolTip side="bottom"
 
@@ -33,7 +33,7 @@ const TaskNode = ( { data }: NodeProps<TaskNodeType> ) => {
 
                         { data.task.description && <p> {data.task.description} </p>}
 
-                        <small> 右クリックで編集 </small>
+                        <small> { isEditing ? '左クリックで編集：右クリックでメニュー' : '左クリックで開始' } </small>
 
                     </div>
 

@@ -52,11 +52,11 @@ const FlowContextMenu = ( { x, y, insertNewTask, layoutNodes, saveGraph, insertB
 
                 {/* TEST FOR AGENT */}
                 <Dialog>
-                    <DialogTrigger render={
+                    <DialogTrigger>
                         <PlainTextToolTip
                             children={<div className="flex gap-1.5 p-1 rounded-sm hover:bg-gray-100 transition-all"> データ入力 </div>}
                             text="JSONデータでノードとエッジを生成"/>
-                    }/>
+                    </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                         <DialogTitle> ノートとエッジのデータ張り付けてください </DialogTitle>

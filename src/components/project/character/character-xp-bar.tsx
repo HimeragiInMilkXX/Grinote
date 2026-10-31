@@ -5,7 +5,7 @@ import {
     ProgressLabel,
     ProgressValue,
 } from "@/components/ui/progress"
-import gsap from 'gsap';
+import gsap from "gsap"
 import { useLevel } from "@/hooks/useLevel";
 import { RefObject, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { clamp } from "@/utils/utils";
