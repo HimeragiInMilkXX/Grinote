@@ -23,24 +23,11 @@ export default async function ProjectPageLayout({ children, params }: LayoutProp
 
 	}
 
-    let isTutorialCompleted = true;
-
-    for( const step of project.tutorial_progress ) {
-
-        if( !step ) {
-
-            isTutorialCompleted = false;
-            break;
-
-        }
-
-    }
-
 	return (
 		<main className="flex items-center justify-center h-screen">
 			<ProjectNavigation projectId={projectId}/>
             {children}
-			{ !isTutorialCompleted && <ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw]" project_id={projectId} tutorial_progress={project.tutorial_progress}/> }
+			<ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw]" project_id={projectId} tutorial_progress={project.tutorial_progress}/>
         </main>
 	);
 }

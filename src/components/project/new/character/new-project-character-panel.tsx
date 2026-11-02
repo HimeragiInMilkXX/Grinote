@@ -3,8 +3,10 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import CharacterPickCarousel, { CharacterPickCarouselHandle } from "./character-pick-carousel"
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import { handlePickCharacter } from "@/app/project/new/clientActions"
+import { useAtom } from "jotai"
+import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay"
 
 const NewProjectCharacterPanel = ( { characters }: {
 
@@ -19,11 +21,11 @@ const NewProjectCharacterPanel = ( { characters }: {
 
     const pickCarouselRef = useRef<CharacterPickCarouselHandle>(null);
 
-    const [ isSubmitting, setIsSubmitting ] = useState( false );
+    const [ isLoading, setIsLoading ] = useAtom(isLoadingAtom)
 
     const handleSubmit = async () => {
 
-        setIsSubmitting( true );
+        setIsLoading( true );
 
         await handlePickCharacter( pickCarouselRef.current?.getPickedCharacterId() ?? 1 )
 
@@ -33,7 +35,7 @@ const NewProjectCharacterPanel = ( { characters }: {
         <Card className="w-full sm:max-w-md">
 
             <CardHeader>
-                <CardTitle> 達成するまでの仲間のキャラクター選びましょう！ </CardTitle>
+                <CardTitle> 達成するまでの仲間のキャラクター選びましょう！</CardTitle>
             </CardHeader>
 
             <CardContent>
@@ -43,7 +45,7 @@ const NewProjectCharacterPanel = ( { characters }: {
             </CardContent>
 
             <CardFooter>
-                <Button className="w-full" disabled={isSubmitting} onClick={handleSubmit}> { isSubmitting ? "送信中..." : "次へ" } </Button>
+                <Button className="w-full" disabled={isLoading} onClick={handleSubmit}> { isLoading ? "送信中..." : "次へ" } </Button>
             </CardFooter>
 
         </Card>

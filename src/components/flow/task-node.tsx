@@ -1,9 +1,16 @@
+"use client"
+
 import type { TaskNodeType } from "@/types/flow"
 import { Handle, NodeProps, Position } from "@xyflow/react"
 import { Repeat, StickyNote, Check } from 'lucide-react';
 import PlainTextToolTip from "../miscellaneous/plain-text-tooltip";
+import { useAtomValue } from "jotai";
+import { hasActiveTaskAtom } from "./flow-client";
 
 const TaskNode = ( { data, draggable: isEditing }: NodeProps<TaskNodeType> ) => {
+
+    const hasActiveTask = useAtomValue( hasActiveTaskAtom );
+
     return (
         <PlainTextToolTip side="bottom"
 
@@ -27,7 +34,9 @@ const TaskNode = ( { data, draggable: isEditing }: NodeProps<TaskNodeType> ) => 
 
             popupElement={
 
-                !data.task.isRoot && !data.task.isCompleted ? (
+                hasActiveTask ? <div>{data.task.description ? data.task.description : "説明入っていない"}</div> :
+
+                ( (!data.task.isRoot && !data.task.isCompleted) ? (
 
                     <div className="flex flex-col items-start bg-white/70 text-gray-800">
 
@@ -37,7 +46,8 @@ const TaskNode = ( { data, draggable: isEditing }: NodeProps<TaskNodeType> ) => 
 
                     </div>
 
-                ) : <small> 操作不可 </small>
+                ) : <small> 操作不可 </small> )
+
 
             }
 

@@ -3,6 +3,7 @@ import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import LoadingOverlay from "@/components/miscellaneous/loading-overlay";
 
 const notoSansJP = Noto_Sans_JP({
 	subsets: ["latin"],
@@ -20,7 +21,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 			lang="ja"
 			className={`${notoSansJP.className} h-full antialiased`}
 		>
-			<body className="min-h-full flex flex-col">
+			<body className="min-h-full flex flex-col relative">
+				<LoadingOverlay/>
 				<TooltipProvider>{children}</TooltipProvider>
 				<Toaster/>
 			</body>

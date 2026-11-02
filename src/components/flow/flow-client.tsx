@@ -16,12 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import NodeDataConfirmPanel from "@/components/flow/node-data-confirm-panel";
-import { getActiveTask } from "@/app/project/[projectId]/onair/serverActions";
 import { updateTutorialProgress } from "@/app/project/[projectId]/serverActions";
 import { toast } from "sonner";
 import FlowProcessLoading from "@/components/flow/flow-process-loading";
-import { useSetAtom } from "jotai";
+import { atom, useSetAtom } from "jotai";
 import { treeRequiresSaveActionAtom } from "@/atoms/tree_requires_save_action_atom";
+import { isLoadingAtom } from "../miscellaneous/loading-overlay";
+import { currentStepAtom } from "../tutorial/project/project-tutorial-panel";
 
 const nodeTypes = {
     taskNode: TaskNode
@@ -29,6 +30,7 @@ const nodeTypes = {
 
 interface FlowClientProps {
 
+    hasActiveTask: boolean;
     initialNodes: TaskNodeType[];
     initialEdges: Edge[];
     project_id: string;
@@ -38,7 +40,13 @@ interface FlowClientProps {
 
 }
 
-function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGraphToNodes, project_id, isInitialEditMode = true }: FlowClientProps ) {
+export const hasActiveTaskAtom = atom(false);
+
+function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedElements, saveGraphToNodes, project_id, isInitialEditMode = true }: FlowClientProps ) {
+
+    // For onboarding
+    const setCurrentStepAtom = useSetAtom(currentStepAtom);
+
 
     const nodesInitialized = useNodesInitialized();
 
@@ -47,17 +55,9 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     useEffect( () => setIsEditMode(isInitialEditMode), [isInitialEditMode])
 
-    // Disable Drag while not in editmode
-    
-    // Prevent user from editing the graph while working on a task
-    const [ hasActiveTask, setHasActiveTask ] = useState(false);
-
-    useEffect( () => {
-
-        getActiveTask( project_id ).then( res => setHasActiveTask( res != null ) );
-
-    }, [project_id])
-
+    // Determine whether nodes are interactable
+    const setHasActiveTaskAtom = useSetAtom(hasActiveTaskAtom)
+    useEffect( () => setHasActiveTaskAtom( hasActiveTask ), [hasActiveTask]);
 
     // Helper functions for the graph
     const { screenToFlowPosition } = useReactFlow();
@@ -232,7 +232,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
     // Drag from handle
     const [ connectingNodeInfo, setConnectingNodeInfo ] = useState<{ node_id: string, handle_id: string } | null>();
 
-    const onConnectStart = useCallback( ( e: any, params: OnConnectStartParams ) => {
+    const onConnectStart = useCallback( ( _e: any, params: OnConnectStartParams ) => {
 
         if( hasActiveTask || !isEditMode ) return;
 
@@ -368,6 +368,8 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         e.stopPropagation();
 
+        if( hasActiveTask ) return;
+
         setShowMenu(false);
         setShowNodeMenu(false);
 
@@ -435,12 +437,12 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     useEffect( () => {
 
-        setSaveCheckAtom( a => ({
+        setSaveCheckAtom({
 
             projectId: project_id,
             requiresSave: requiresSaveAction
 
-        }))
+        })
 
     }, [ requiresSaveAction ])
 
@@ -527,7 +529,16 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         setRequiresSaveAction(true)
 
-        updateTutorialProgress(project_id, 0).then( res => { if(res) toast.success("「目標ツリーを確認・編集する」達成！次はそれを保存しよう！", { position: "top-left" }) } );
+        updateTutorialProgress(project_id, 0).then( res => {
+
+            if(res) {
+
+                toast.success("「目標ツリーを確認・編集する」達成！次はそれを保存しよう！", { position: "top-left" })
+                setCurrentStepAtom( prev => prev + 1 )
+
+            }
+
+        } );
 
         refocusToClient()
 
@@ -560,6 +571,8 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
     const [ isSaving, setIsSaving ] = useState(false);
 
+    const setIsLoading = useSetAtom( isLoadingAtom );
+
     const saveGraph = useCallback( async () => {
 
         if( hasActiveTask || isSaving || !isEditMode ) return;
@@ -569,6 +582,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
         try {
 
             setIsSaving(true)
+            setIsLoading(true)
 
             await saveGraphToNodes( rfInstance.toObject(), project_id );
 
@@ -578,7 +592,10 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
             setRequiresSaveAction(false)
 
             const tutorialUpdated = await updateTutorialProgress(project_id, 1);
-            if( tutorialUpdated ) toast.success("「ツリーを保存する」達成！次はタスク一つ開始しよう！", { position: "top-left" });
+            if( tutorialUpdated ) {
+                toast.success("「ツリーを保存する」達成！次はタスク一つ開始しよう！", { position: "top-left" });
+                setCurrentStepAtom( prev => prev + 1 );
+            }
 
         } catch {
 
@@ -587,6 +604,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
         }
 
         setIsSaving( false );
+        setIsLoading(false)
         refocusToClient()
 
     }, [rfInstance, hasActiveTask, project_id, saveGraphToNodes, closeAllMenus, isSaving, isEditMode ] )
@@ -613,7 +631,16 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         layoutNodes();
 
-        updateTutorialProgress(project_id, 0).then( res => { if(res) toast.success("「目標ツリーを確認・編集する」達成！次はそれを保存しよう！", { position: "top-left" }) } );
+        updateTutorialProgress(project_id, 0).then( res => {
+
+            if(res) {
+
+                toast.success("「目標ツリーを確認・編集する」達成！次はそれを保存しよう！", { position: "top-left" })
+                setCurrentStepAtom( prev => prev + 1 )
+
+            }
+
+        } );
 
     }, [hasActiveTask, selectedNode])
 
@@ -757,10 +784,10 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                 {/* Editor */}
                 <Panel position='top-right'>
 
-                    { isEditMode ?
+                    { ( isEditMode ) ?
 
                         /* editor */
-                        ( (showEditor && selectedNode) ?
+                        ( !hasActiveTask && ((showEditor && selectedNode) ?
                             <motion.div
                                 drag
                                 dragControls={dragControls}
@@ -769,10 +796,10 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                                 className="nodrag">
                                 <NodeDataDisplayEditor selectedNode={selectedNode} onPointerDown={e => dragControls.start(e)} requiresSaveAction={() => setRequiresSaveAction(true)}/>
                             </motion.div>
-                            : <p className='text-2xl'> 右クリックから始めましょう！ </p> ) :
+                            : <p className='text-2xl'> 右クリックから始めましょう！ </p> )) :
 
                         /* pick */
-                        ( (showEditor && selectedNode) ?
+                        ( !hasActiveTask && ((showEditor && selectedNode) ?
                             <motion.div
                                 drag
                                 dragControls={dragControls}
@@ -781,7 +808,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                                 className="nodrag">
                                 <NodeDataConfirmPanel project_id={project_id} selectedNode={selectedNode} onPointerDown={e => dragControls.start(e)}/>
                             </motion.div>
-                            : <p className='text-2xl'>今日はどれにしますか？</p> ) }
+                            : <p className='text-2xl'>今日はどれにしますか？</p> )) }
 
                 </Panel>
 
@@ -832,6 +859,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
                 {/* Switching mode */}
                 {
 
+                    !hasActiveTask &&
                     <Panel position="top-left" className="select-none">
                         <div className="flex items-center space-x-3">
                             <Switch className="cursor-pointer" size="xl" id="airplane-mode" checked={isEditMode} onCheckedChange={setIsEditMode}/>

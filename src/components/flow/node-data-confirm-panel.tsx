@@ -11,6 +11,8 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { redirect } from "next/navigation";
 import { GripVertical } from "lucide-react";
+import { isLoadingAtom } from "../miscellaneous/loading-overlay";
+import { useSetAtom } from "jotai/react";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -31,11 +33,19 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
 
     const [ isStarting, setIsStarting ] = useState(false);
 
+    const setIsLoading = useSetAtom( isLoadingAtom )
+
     useEffect( ( ) => {
 
         setData( selectedNode.data.task )
 
     }, [ selectedNode ])
+
+    const onTaskStart = () => {
+        setIsStarting( true );
+        setIsLoading(true);
+        redirect(`/project/${project_id}/onair?nodeId=${selectedNode.id}`)
+    }
 
     return (
         <Card className="min-w-100 shadow-xl opacity-80 [*]:select-none pt-0">
@@ -101,7 +111,7 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
             <CardFooter className="flex gap-1.5 items-center">
                 { (data.isAction && !data.isCompleted) ?
 
-                    <Button className="w-full bg-green-500 hover:bg-green-600" disabled={isStarting} onClick={() => { setIsStarting( true ); redirect(`/project/${project_id}/onair?nodeId=${selectedNode.id}`) }}> スタート </Button> :
+                    <Button className="w-full bg-green-500 hover:bg-green-600" disabled={isStarting} onClick={onTaskStart}> スタート </Button> :
                     <Button className="w-full" disabled> このノートは行動ではないです </Button>
 
                 }

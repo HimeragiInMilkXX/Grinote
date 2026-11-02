@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { redirect } from "next/navigation";
 import { addWeeks, format } from "date-fns";
+import { useSetAtom } from "jotai";
+import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay";
 
 const WEEKDAYS = [
     { value: 1, label: "月" },
@@ -89,7 +91,11 @@ const NewProjectDetailsForm = () => {
 
     const { isSubmitting } = form.formState;
 
+    const setIsLoading = useSetAtom( isLoadingAtom )
+
     async function onSubmit( data: z.infer<typeof newProjectDetailsFormSchema> ) {
+
+        setIsLoading( true )
 
         await handleDetailsDef( data );
 

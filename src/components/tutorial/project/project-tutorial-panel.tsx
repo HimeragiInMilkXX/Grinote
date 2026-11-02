@@ -7,10 +7,15 @@ import FloatingCollapsible from "@/components/miscellaneous/floating-collapsible
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Minimize2 } from "lucide-react";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
+import { atom, useSetAtom } from "jotai";
+
+export const currentStepAtom = atom(0);
 
 export default function ProjectTutorialPanel( { className = "", project_id, tutorial_progress }: { className?: string, project_id: string, tutorial_progress: [ boolean, boolean, boolean, boolean, boolean ] }) {
 
-    const [ currentStep, setCurrentStep ] = useState(0);
+    const setCurrentStep = useSetAtom(currentStepAtom);
+
+    const [ isComplete, setIsComplete ] = useState(true);
 
     useEffect( () => {
 
@@ -19,83 +24,85 @@ export default function ProjectTutorialPanel( { className = "", project_id, tuto
             if( !value ) {
 
                 setCurrentStep( index );
-                break;
+                setIsComplete(false)
+                return;
 
             }
 
         }
 
-    }, [ tutorial_progress ])
+        setIsComplete(true);
+
+    }, [])
 
     return (
 
-        <FloatingCollapsible hideTriggerOnOpen
+        !isComplete &&
 
-            trigger={
+            ( <FloatingCollapsible hideTriggerOnOpen initOpen={!isComplete}
 
-                <Button variant="default" size="icon" aria-label="Expand" className="absolute right-0 top-0 m-6 bg-green-400 shadow hover:bg-green-500 cursor-pointer">
-                    <GraduationCap className="h-4 w-4" size={24} />
-                </Button>
+                trigger={
 
-            }
+                    <Button variant="default" size="icon" aria-label="Expand" className="absolute right-0 top-0 m-6 bg-green-400 shadow hover:bg-green-500 cursor-pointer">
+                        <GraduationCap className="h-4 w-4" size={24} />
+                    </Button>
 
-            content={
+                }
 
-                <Card className={`${className} max-w-none!`}>
+                content={
 
-                    <CollapsibleTrigger render={
-                        <Button variant="ghost" size="icon" aria-label="Expand" className="bg-transparent! hover:bg-gray-100! absolute right-0 top-0">
-                            <Minimize2 className="h-4 w-4" />
-                        </Button>
-                    }/>
+                    <Card className={`${className} max-w-none!`}>
 
-                    <CardHeader>
-                        <CardTitle> 始めましょう！ </CardTitle>
-                        <CardDescription> 初めてのGrinote？ステップに沿ってとりあえずやってみましょう（報酬あり） </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-2">
+                        <CollapsibleTrigger render={
+                            <Button variant="ghost" size="icon" aria-label="Expand" className="bg-transparent! hover:bg-gray-100! absolute right-0 top-0">
+                                <Minimize2 className="h-4 w-4" />
+                            </Button>
+                        }/>
 
-                        <StepLine
-                            step="目標ツリーを確認・編集する"
-                            isCompleted={tutorial_progress[0]}
-                            destination={`/project/${project_id}/tree?isInitialEditMode=true`}
-                            isAvailable={0 <= currentStep}
-                        />
+                        <CardHeader>
+                            <CardTitle> 始めましょう！ </CardTitle>
+                            <CardDescription> 初めてのGrinote？ステップに沿ってとりあえずやってみましょう（報酬あり） </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-2">
 
-                        <StepLine
-                            step="ツリーを保存する"
-                            isCompleted={tutorial_progress[1]}
-                            destination={`/project/${project_id}/tree?isInitialEditMode=true`}
-                            isAvailable={1 <= currentStep}
-                        />
+                            <StepLine
+                                step="目標ツリーを確認・編集する"
+                                destination={`/project/${project_id}/tree?isInitialEditMode=true`}
+                                stepIndex={0}
+                            />
 
-                        <StepLine
-                            step="タスクを1つ開始する"
-                            isCompleted={tutorial_progress[2]}
-                            destination={`/project/${project_id}/tree?isInitialEditMode=false`}
-                            isAvailable={2 <= currentStep}
-                        />
+                            <StepLine
+                                step="ツリーを保存する"
+                                destination={`/project/${project_id}/tree?isInitialEditMode=true`}
+                                stepIndex={1}
+                            />
 
-                        <StepLine
-                            step="タスクを完了する"
-                            isCompleted={tutorial_progress[3]}
-                            destination={`/project/${project_id}/onair`}
-                            isAvailable={3 <= currentStep}
-                        />
+                            <StepLine
+                                step="タスクを1つ開始する"
+                                destination={`/project/${project_id}/tree?isInitialEditMode=false`}
+                                stepIndex={2}
+                            />
 
-                        <StepLine
-                            step="進捗を確認する"
-                            isCompleted={tutorial_progress[4]}
-                            destination={`/project/${project_id}/character`}
-                            isAvailable={4 <= currentStep}
-                        />
-                        
-                    </CardContent>
-                </Card>
+                            <StepLine
+                                step="タスクを完了する"
+                                destination={`/project/${project_id}/onair`}
+                                stepIndex={3}
+                            />
 
-            }
+                            <StepLine
+                                step="進捗を確認する"
+                                destination={`/project/${project_id}/character`}
+                                stepIndex={4}
+                            />
 
-        />
+                        </CardContent>
+                    </Card>
+
+                }
+
+            />
+
+        )
 
     )
 

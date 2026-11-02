@@ -1,11 +1,13 @@
 "use client"
 
 import { saveResourceConsumedInformation } from "@/app/project/[projectId]/character/serverActions";
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export default function useResource( projectResource: ProjectResource, handleXPChange: ( xp: number, quantity: number ) => void ) {
 
     const [ quantity, setQuantity ] = useState( projectResource.quantity );
+
+    useEffect( () => setQuantity(projectResource.quantity), [ projectResource ] )
 
     async function consumeResource( value: number = 1 ) {
 

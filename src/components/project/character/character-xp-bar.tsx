@@ -6,14 +6,14 @@ import {
     ProgressValue,
 } from "@/components/ui/progress"
 import gsap from "gsap"
-import { RefObject, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { atom, useAtom, useSetAtom } from "jotai";
+import { RefObject, useEffect, useImperativeHandle, useRef } from "react";
+import { atom, useSetAtom } from "jotai";
 import { useCharacterLevel } from "@/hooks/useCharacterLevel";
 
 type CharacterXPBarProps = {
 
     project_id: string;
-    ref: RefObject<CharacterXPBarHandle>;
+    ref: RefObject<CharacterXPBarHandle | null>;
     initLevel: number;
     initTotalXp: number;
     growth_step: Record<number, number>;

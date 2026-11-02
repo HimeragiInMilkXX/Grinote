@@ -1,6 +1,5 @@
 import CharacterTrainingDisplay from '@/components/project/character/training/character-training-display';
 import { getProject } from '@/lib/projects';
-import { getProjectResources } from './serverActions';
 
 const ProjectPageCharacter = async ( { params }: { params: any }) => {
 
@@ -8,11 +7,9 @@ const ProjectPageCharacter = async ( { params }: { params: any }) => {
 
     const project: Project = await getProject( projectId );
 
-    const projectResources: ProjectResource[] = await getProjectResources( projectId );
-
     return (
         <div className='flex gap-3 flex-col'>
-            <CharacterTrainingDisplay project={project} projectResources={projectResources}/>
+            <CharacterTrainingDisplay project={project}/>
         </div>
     )
 }

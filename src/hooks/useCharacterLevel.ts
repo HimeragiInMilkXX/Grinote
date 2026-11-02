@@ -1,5 +1,5 @@
 import { saveCharacterProgress } from "@/app/project/[projectId]/character/serverActions";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const useCharacterLevel = ( project_id: string, initLevel: number, initTotalXp: number, growth_step: Record<number, number>, animate: ( from: number, to: number, isLvUp?: boolean ) => void ) => {
 
@@ -49,7 +49,6 @@ export const useCharacterLevel = ( project_id: string, initLevel: number, initTo
 
     // CURRENT OVERFLOWXP = TOTALXP - LEVEL_REQUIRED_TOTAL_XP
     const [ overflowXp, setOverflowXp ] = useState(initTotalXp - getTotalXpUntilLv(initLevel))
-    const totalXP = useMemo( () => getTotalXpUntilLv(level) + overflowXp, [ overflowXp, level ] );
 
     // -- START OF INITIALIZATION --
     const oneTimeRef = useRef(0);
@@ -87,7 +86,7 @@ export const useCharacterLevel = ( project_id: string, initLevel: number, initTo
             // UPDATE STATES
             setOverflowXp( overflowXp + xp_gained );
             setLevel( lv );
-            return { level: lv, total_xp: getTotalXpUntilLv(lv) + xp_gained }
+            return { level: lv, total_xp: getTotalXpUntilLv(lv) + xp_gained + overflowXp }
 
         }
 

@@ -2,10 +2,12 @@
 
 import { abandonTask, completeTask, pauseTask, resumeTask } from "@/app/project/[projectId]/onair/serverActions";
 import { updateTutorialProgress } from "@/app/project/[projectId]/serverActions";
+import { currentStepAtom } from "@/components/tutorial/project/project-tutorial-panel";
 import { Button } from "@/components/ui/button";
 import { useSyncedDuration } from "@/hooks/useSyncedDuration"
 import { OnAirRecord } from "@/types/records";
 import { getMsFormatted } from "@/utils/utils";
+import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,12 +15,25 @@ interface Props { activeTask: OnAirRecord }
 
 const OnAirTimer = ( { activeTask }: Props ) => {
 
+    // For onboarding
+    const setCurrentStepAtom = useSetAtom(currentStepAtom);
+
+
     const [ task, setTask ] = useState<OnAirRecord>( activeTask );
     const [ ended, setEnded ] = useState<boolean>(false);
 
     useEffect( () => {
 
-        updateTutorialProgress(activeTask.project_id, 2).then( ( res ) => {if( res ) toast.success("「タスクを1つ開始する」達成！次はそれを完成しよう！", { position: "top-left" })} )
+        updateTutorialProgress(activeTask.project_id, 2).then( ( res ) => {
+
+            if( res ) {
+
+                toast.success("「タスクを1つ開始する」達成！次はそれを完成しよう！", { position: "top-left" })
+                setCurrentStepAtom( prev => prev + 1 )
+
+            }
+
+        })
 
     }, [])
 

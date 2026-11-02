@@ -15,6 +15,8 @@ import { Button } from "../ui/button";
 import { useEffect, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { GripVertical } from "lucide-react";
+import { isLoadingAtom } from "../miscellaneous/loading-overlay";
+import { useSetAtom } from "jotai/react";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -83,6 +85,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
     })
 
     const [ isEditing, setIsEditing ] = useState<boolean>(true)
+    const setIsLoading = useSetAtom(isLoadingAtom);
     const { isSubmitting } = form.formState;
 
     const { updateNode } = useReactFlow();
@@ -90,6 +93,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
     const onSubmit = async ( data: z.infer<typeof nodeDetailsFormSchema> ) => {
 
         setIsEditing( false )
+        setIsLoading( true )
 
         updateNode( selectedNode.id, () => ({
 
@@ -108,6 +112,8 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
             }
 
         }))
+
+        setIsLoading( false );
 
         requiresSaveAction()
 

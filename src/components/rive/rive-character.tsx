@@ -1,6 +1,6 @@
 "use client"
 
-import { useRive, useStateMachineInput } from "@rive-app/react-canvas";
+import { Rive, useRive, useStateMachineInput } from "@rive-app/react-canvas";
 import { useAtom } from "jotai";
 import { RefObject, useEffect, useImperativeHandle, useState } from "react";
 import { lvAtom } from "../project/character/character-xp-bar";
@@ -25,6 +25,9 @@ export interface RiveCharacterHandle {
 }
 
 const STATE_MACHINE = "State Machine 1"
+
+// Suppress deprecation warnings from state machine of Rive
+Rive.suppressDeprecationWarnings = ["state-machine-inputs"]
 
 const RiveCharacter = ( { growth_step = {"1": 50, "5": 100, "10": 150, "25": 200, "45": 400, "50": 500}, ref, character_id, className = "", onRiveReady = () => {}, ...eventProps }: RiveCharacterProps ) => {
 
