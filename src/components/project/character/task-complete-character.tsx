@@ -31,14 +31,14 @@ const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { re
 
     }, [])
 
-    const processReward = useCallback(() => {
+    const processReward = useCallback( async () => {
 
         if( rewardDisplayed.current || !characterXPBarRef.current ) return
 
         rewardDisplayed.current = true;
-        const { lv, xp } = characterXPBarRef.current?.onXPGained(characterLevelChanges.xp_gained)
+        const { level, total_xp } = characterXPBarRef.current?.handleXpGain(characterLevelChanges.xp_gained)
 
-        saveCharacterProgress( project.id, lv, xp )
+        await saveCharacterProgress( project.id, level, characterLevelChanges.prev_xp + characterLevelChanges.xp_gained )
 
     }, [])
 
@@ -54,10 +54,18 @@ const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { re
 
     }, [])
 
+    useEffect( () => {
+
+        if( !characterXPBarRef.current ) return;
+
+        processReward()
+        
+    }, [])
+
     return (
         <div>
             <RiveCharacter growth_step={project.characters?.growth_step} ref={riveCharacterRef} character_id={project.characters?.id ?? 1} className="h-full" onRiveReady={onRiveReady}/>
-            <CharacterXPBar onInitialized={processReward} ref={characterXPBarRef} character_level={characterLevelChanges.prev_lv} character_xp={characterLevelChanges.prev_xp} growth_step={characterLevelChanges.growth_step}/>
+            <CharacterXPBar project_id={project.id} ref={characterXPBarRef} initLevel={characterLevelChanges.prev_lv} initTotalXp={characterLevelChanges.prev_xp} growth_step={characterLevelChanges.growth_step}/>
         </div>
     )
 }

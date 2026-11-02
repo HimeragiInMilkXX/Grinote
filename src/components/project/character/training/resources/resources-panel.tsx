@@ -17,9 +17,9 @@ const ResourcesPanel = ( { project_id, projectResources, characterXP }: Resource
 
         if( xp < 1 || quantity < 1 || !characterXP.current ) return;
 
-        const { lv, xp: newXP } = characterXP.current.onXPGained( xp * quantity );
+        const { level, total_xp } = characterXP.current.handleXpGain( xp * quantity );
 
-        await saveCharacterProgress( project_id, lv, newXP )
+        await saveCharacterProgress( project_id, level, total_xp )
 
     }
 

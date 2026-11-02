@@ -6,67 +6,45 @@ import {
     ProgressValue,
 } from "@/components/ui/progress"
 import gsap from "gsap"
-import { useLevel } from "@/hooks/useLevel";
 import { RefObject, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { clamp } from "@/utils/utils";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
+import { useCharacterLevel } from "@/hooks/useCharacterLevel";
 
-type Props = {
+type CharacterXPBarProps = {
 
-    ref: RefObject<CharacterXPBarHandle | null>;
-    onInitialized?: () => void;
-    character_level: number;
-    character_xp: number;
-    growth_step: Record<number, number>
+    project_id: string;
+    ref: RefObject<CharacterXPBarHandle>;
+    initLevel: number;
+    initTotalXp: number;
+    growth_step: Record<number, number>;
 
 }
 
 export interface CharacterXPBarHandle {
 
-    onXPGained: ( newXP: number ) => { lv: number, xp: number };
+    handleXpGain: ( xp_gained: number ) => { level: number, total_xp: number };
 
 }
 
 // FOR GROWTHSTEP DISPLAY
 export const lvAtom = atom(0);
 
-const CharacterXPBar = ( { ref, onInitialized = () => {}, character_level, character_xp, growth_step }: Props ) => {
+const CharacterXPBar = ( { project_id, ref, initLevel, initTotalXp, growth_step }: CharacterXPBarProps ) => {
 
-    const { isInitialized, onXPGained, display } = useLevel(
-        ( lv: number, progress: number ) => {
+    const { progress, setProgress, displayLv, setDisplayLv, handleXpGain } = useCharacterLevel( project_id, initLevel, initTotalXp, growth_step, animate );
 
-            setLV( lv );
-            setProgress( progress );
+    // UPDATE GLOBAL LEVEL PRESENTATION
+    const setLvAtom = useSetAtom( lvAtom );
+    useEffect( () => setLvAtom( displayLv ), [ displayLv ] );
 
-        },
-        triggerXpIncreaseAnimation, character_level, character_xp, growth_step )
 
-    const [ progress, setProgress ] = useState( display.progress );
-
-    const [ lv, setLV ] = useAtom( lvAtom );
-
-    const valueRef = useRef( { progress: progress })
+    // -- START OF ANIMATION --
+    const valueRef = useRef( { progress: 0 })
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
-    useEffect(() => {
-        if (isInitialized) onInitialized();
-        setLV( display.level );
-    }, [isInitialized, onInitialized]);
+    function animate( from: number, to: number, isLvUp: boolean = false ) {
 
-    useImperativeHandle( ref, () => {
-
-        return {
-
-            onXPGained: ( newXP: number ) => {
-                return onXPGained( newXP )
-            }
-
-        }
-
-    }, [ onXPGained ])
-
-    function triggerXpIncreaseAnimation( isLvUp: boolean, previous: number, current: number, duration: number = 2 ) {
-
+        // CREATE NEW TIMELINE IF NULL
         if( !timelineRef.current ) {
 
             timelineRef.current = gsap.timeline({ onComplete: () => timelineRef.current = null } );
@@ -75,22 +53,35 @@ const CharacterXPBar = ( { ref, onInitialized = () => {}, character_level, chara
 
         if( !valueRef.current ) return
 
-        timelineRef.current.fromTo( valueRef.current, { progress: previous }, { progress: clamp( current, 0, 100 ),
-            duration: duration,
+        // QUEUE ANIMATION
+        timelineRef.current.fromTo( valueRef.current, { progress: from }, { progress: to,
+            duration: to - from,
             ease: 'none',
-            onUpdate: () => { setProgress( valueRef.current.progress ); },
-            onStart: () => { if( isLvUp ) setLV( (lv) => lv + 1 ) }
+            onUpdate: () => { setProgress( valueRef.current.progress * 100 ); },
+            onComplete: () => { if(isLvUp) { setProgress(0); setDisplayLv((lv) => lv + 1) } }
         },)
 
     }
+    // -- END OF ANIMATION --
 
+
+    // EXPOSED FUNCTIONS
+    useImperativeHandle( ref, () => {
+
+        return {
+
+            handleXpGain: ( xp_gained: number ) => handleXpGain( xp_gained )
+
+        }
+
+    })
     return (
         <Progress value={progress} className="w-full [&>div>div]:transition-none!">
-            <ProgressLabel> LV. {lv} </ProgressLabel>
+            <ProgressLabel>{displayLv} </ProgressLabel>
             <ProgressValue />
-            {/* <div> {level}/{remainingXP}/{ nextLevelRequiredXP }/{display.progress}/{xp} </div> */}
         </Progress>
-)
+    )
+
 }
 
 export default CharacterXPBar
