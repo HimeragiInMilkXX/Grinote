@@ -87,6 +87,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
         closeAllMenus();
         setRequiresSaveAction(true)
+        refocusToClient()
 
     }, [undo, redo, canRedo, canUndo])
 
@@ -396,7 +397,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
             }
 
             triggerUpdate("nodes", applyNodeChanges(changes, elements.nodes), ignore);
-            setRequiresSaveAction(true)
+
         },
         [triggerUpdate, elements.nodes],
     );
@@ -471,7 +472,6 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
 
             id: crypto.randomUUID(),
             position: screenToFlowPosition({ x: e.clientX, y: e.clientY }),
-            selected: true,
             data: { label: isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "レーベル", task: {
 
                 task_name: isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "レーベル",
@@ -524,11 +524,6 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
         }
 
         onPaneClick(e);
-
-        setSelectedNode( newNode );
-
-        // Show Editor Panel
-        setShowEditor( true );
 
         setRequiresSaveAction(true)
 
@@ -592,6 +587,7 @@ function FlowClient( { initialNodes, initialEdges, getLayoutedElements, saveGrap
         }
 
         setIsSaving( false );
+        refocusToClient()
 
     }, [rfInstance, hasActiveTask, project_id, saveGraphToNodes, closeAllMenus, isSaving, isEditMode ] )
 
