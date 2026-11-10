@@ -1,3 +1,5 @@
+"use client"
+
 import { getMaterialsExistingFilterableColumnValues } from "@/app/project/[projectId]/materials/serverActions"
 import PopoverSimplfied from "@/components/miscellaneous/popover"
 import { Button } from "@/components/ui/button"

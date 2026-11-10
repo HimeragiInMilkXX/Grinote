@@ -1,3 +1,5 @@
+"use client"
+
 import { Material, materialTypeCaptions } from "@/types/materials"
 import { TableCell, TableRow } from "../ui/table";
 import { useAtom, useSetAtom } from "jotai";

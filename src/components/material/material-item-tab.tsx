@@ -1,3 +1,5 @@
+"use client"
+
 import { fetchPlayableMaterial, fetchReadonlyMaterial, getMaterial } from "@/app/project/[projectId]/materials/serverActions";
 import { Material } from "@/types/materials"
 import { useEffect, useState } from "react"

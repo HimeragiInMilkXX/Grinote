@@ -1,6 +1,5 @@
 'use client'
 
-import MaterialListTab from "@/components/material/material-list-tab"
 import MaterialTabs from "@/components/material/material-tabs"
 const TestPage = () => {
 

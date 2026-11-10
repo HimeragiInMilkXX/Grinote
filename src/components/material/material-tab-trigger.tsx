@@ -1,3 +1,5 @@
+"use client"
+
 import { TabsTrigger } from '../ui/tabs'
 import { Button } from '../ui/button'
 import { X } from 'lucide-react'

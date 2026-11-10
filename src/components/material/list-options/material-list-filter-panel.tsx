@@ -1,3 +1,5 @@
+"use client"
+
 import { MaterialFilterableColumns, materialTypeCaptions } from "@/types/materials"
 import { Control, Controller, useWatch } from "react-hook-form";
 import { materialListOptionsFormSchema } from "./material-list-options-panel";

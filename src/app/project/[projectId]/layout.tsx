@@ -27,7 +27,7 @@ export default async function ProjectPageLayout({ children, params }: LayoutProp
 		<main className="flex items-center justify-center h-screen">
 			<ProjectNavigation projectId={projectId}/>
             {children}
-			<ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw]" project_id={projectId} tutorial_progress={project.tutorial_progress}/>
+			<ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw] z-10" project_id={projectId} tutorial_progress={project.tutorial_progress}/>
         </main>
 	);
 }

@@ -1,3 +1,5 @@
+"use client"
+
 const EmbeddedBrowser = ( { className = '', src }: { className?: string, src: string } ) => {
 
     return (

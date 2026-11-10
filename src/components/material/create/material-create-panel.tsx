@@ -1,3 +1,5 @@
+"use client"
+
 import { Plus } from "lucide-react"
 import { Button } from "../../ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../ui/dialog"
@@ -100,7 +102,7 @@ const MaterialCreatePanel = ( { project_id }: { project_id: string } ) => {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger className="inline-flex h-7.2 items-center justify-start gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-medium whitespace-nowrap text-foreground/60 transition-all hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50" render={
-                <Button variant="secondary" className={ cn( "className", "bg-yellow-200 hover:bg-yellow-300 py-1.5! w-20 min-w-20 max-w-20 overflow-hidden hover:[&>.closeOverlay]:opacity-100 hover:[&>.closeOverlay]:pointer-events-auto relative data-active:bg-yellow-300! data-popup-open:bg-yellow-300!" ) }>
+                <Button variant="secondary" className={ cn( "className", "bg-yellow-300 hover:bg-yellow-400 py-1.5! w-20 min-w-20 max-w-20 overflow-hidden hover:[&>.closeOverlay]:opacity-100 hover:[&>.closeOverlay]:pointer-events-auto relative data-active:bg-yellow-400! data-popup-open:bg-yellow-400!" ) }>
                     <Plus size={16} className='cursor-pointer pointer-events-auto!'/>
                 </Button>}/>
             <DialogContent className="flex flex-col gap-4.5">

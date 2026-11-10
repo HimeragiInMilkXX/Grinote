@@ -108,7 +108,7 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
     // Upload file and upload link column
     if( data.file ) {
 
-        const filePath = `materials/${materialData.id}/${data.file.name}`;
+        const filePath = `materials/${materialData.id}/${materialData.id}.${data.file.name.split(".").pop()}`;
         const { error: fileUploadError } = await supabase.storage.from("materials_media").upload( filePath, data.file );
 
         if( fileUploadError ) throw fileUploadError.message;

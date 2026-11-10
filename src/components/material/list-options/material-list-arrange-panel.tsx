@@ -1,3 +1,5 @@
+"use client"
+
 import { MaterialArrangableColumns, materialColumnsCaption } from "@/types/materials"
 import { useEffect } from "react"
 import { Control, Controller } from "react-hook-form"

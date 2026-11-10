@@ -1,7 +1,7 @@
 "use client";
 
 import { getActiveTask } from "@/app/project/[projectId]/onair/serverActions";
-import { House, Network, RadioTower, Cat } from "lucide-react";
+import { House, Network, RadioTower, Cat, FolderBookmark } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -34,6 +34,11 @@ const ProjectNavigation = ( { projectId }: Props ) => {
             href: `/project/${projectId}/onair`,
             icon: RadioTower,
             label: "ライブタスク",
+        },
+        {
+            href: `/project/${projectId}/materials`,
+            icon: FolderBookmark,
+            label: "マテリアル",
         },
         {
             href: `/project/${projectId}/character`,

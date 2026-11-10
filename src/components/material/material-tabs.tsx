@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
+'use client'
+
+import { Tabs, TabsContent, TabsList } from "../ui/tabs"
 import MaterialListTab from "./material-list-tab";
 import { atom, useAtom } from "jotai";
 import MaterialItemTab from "./material-item-tab";
@@ -9,12 +10,6 @@ import MaterialCreatePanel from "./create/material-create-panel";
 
 export const openedMaterialTabsAtom = atom<{ id: number, name: string }[]>([
 
-    // {id: 1, name: "test"},
-    // {id: 2, name: "test"},
-    // {id: 3, name: "test"},
-    // {id: 4, name: "test"},
-    // {id: 5, name: "test"},
-    // {id: 6, name: "test"},
 ]);
 
 export const currentMaterialTabAtom = atom<string>("list")
@@ -32,10 +27,8 @@ const MaterialTabs = ( { project_id }: { project_id: string }) => {
 
     }
 
-
-
     return (
-        <Tabs className="flex-row-reverse p-6 gap-6 h-screen" orientation="vertical" value={currentTab} onValueChange={setCurrentTab}>
+        <Tabs className="flex-row-reverse p-6 gap-0 h-screen" orientation="vertical" value={currentTab} onValueChange={setCurrentTab}>
             <TabsList className="bg-transparent! gap-3 p-0! h-full! relative justify-between">
 
                 <div className="max-h-full pb-12">
@@ -47,7 +40,7 @@ const MaterialTabs = ( { project_id }: { project_id: string }) => {
                 <div className="flex flex-col">
 
                     <MaterialCreatePanel project_id={project_id}/>
-                    <MaterialTabTrigger value="list" label={ <Home size={16}/> } className="self"/>
+                    <MaterialTabTrigger value="list" label={ <Home size={16}/> }/>
 
                 </div>
 

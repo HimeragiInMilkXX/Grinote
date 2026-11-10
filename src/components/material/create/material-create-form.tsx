@@ -1,3 +1,5 @@
+"use client"
+
 import { Controller, useFormContext, useWatch } from "react-hook-form"
 import { MaterialCreateFormInput, MaterialCreateFormOutput } from "./material-create-panel"
 import { MaterialType, materialTypeCaptions, MaterialTypeCaptions } from "@/types/materials";
