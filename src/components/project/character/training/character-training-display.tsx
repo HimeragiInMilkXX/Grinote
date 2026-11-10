@@ -39,7 +39,7 @@ const CharacterTrainingDisplay = ( { project }: { project: Project }) => {
         updateTutorialProgress(project.id, 4).then( ( res ) => {
             if( res ) {
                 toast.success("「進捗を確認する」達成！", { position: "top-left" })
-                toast.success("オンボーディング完了！リソース報酬どーぞ（リフレッシュ必要）", { position: "top-left" })
+                toast.success("オンボーディング完了！リソース報酬どーぞ", { position: "top-left" })
                 setCurrentStepAtom( prev => prev + 1 )
             }
         } ).then( () => {
