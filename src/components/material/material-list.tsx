@@ -4,15 +4,19 @@ import { Material } from "@/types/materials";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "../ui/table";
 import MaterialRow from "./material-row";
 import { cn } from "cn";
+import { useCallback } from "react";
 
 type MaterialListProps = {
 
     materials: Material[];
     className?: string
+    handleSearch: ( query?: string, page?: number, pageSize?: number ) => void
 
 }
 
-const MaterialList = ( { className = '', materials }: MaterialListProps ) => {
+const MaterialList = ( { className = '', materials, handleSearch }: MaterialListProps ) => {
+
+    const reloadList = useCallback( () => handleSearch(), [ handleSearch ] );
 
     return (
         <div className={ cn( className, "box-border [&>div]:max-h-none!" ) }>
@@ -28,7 +32,7 @@ const MaterialList = ( { className = '', materials }: MaterialListProps ) => {
                 </TableHeader>
                 <TableBody>
                     {
-                        materials && materials.map( mat => <MaterialRow material={mat} key={mat.id}/>)
+                        materials && materials.map( mat => <MaterialRow material={mat} key={mat.id} reloadList={reloadList}/>)
                     }
                 </TableBody>
             </Table>

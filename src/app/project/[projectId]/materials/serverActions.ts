@@ -1,6 +1,7 @@
 "use server"
 
 import { MaterialCreateFormOutput } from "@/components/material/create/material-create-panel";
+import { MaterialEditFormInput, MaterialEditFormOutput } from "@/components/material/edit/material-edit-panel";
 import { Material, MaterialArrangableColumns, MaterialFilterableColumns, MaterialPagination } from "@/types/materials";
 import { createClient } from "@/utils/supabase/server";
 
@@ -78,7 +79,7 @@ export const getMaterialsExistingFilterableColumnValues = async ( project_id: st
 
 }
 
-export const saveMaterial = async ( project_id: string, data: MaterialCreateFormOutput, material_id?: number ): Promise<Material> => {
+export const saveMaterial = async ( project_id: string, data: MaterialCreateFormOutput ): Promise<Material> => {
 
     const supabase = await createClient();
 
@@ -89,9 +90,8 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
     // Link and File can't exist at the same time
     if( data?.link && data?.file ) throw new Error("Link and file shouldn't exist at the same time");
 
-    // Upsert Data
+    // insert Data
     const row = {
-        ...( material_id ? {id: material_id} : {}),
         project_id,
         type: data.type,
         name: data.name,
@@ -101,9 +101,9 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
         link: data.link ?? "",
     };
 
-    const { data: materialData, error: upsertError } = await supabase.from("materials").upsert( row, { onConflict: "id" } ).select("*").single();
+    const { data: materialData, error: insertError } = await supabase.from("materials").insert( row ).select("*").single();
 
-    if( upsertError ) throw upsertError.message;
+    if( insertError ) throw insertError.message;
 
     // Upload file and upload link column
     if( data.file ) {
@@ -120,6 +120,35 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
     }
 
     return materialData;
+
+}
+
+export const updateMaterial = async ( project_id: string, material_id: number, data: MaterialEditFormOutput ) => {
+
+    const supabase = await createClient();
+
+    const { error: updateError } = await supabase.from("materials").update( { ...data } ).eq("id", material_id).eq("project_id", project_id);
+
+    if( updateError ) throw updateError.message;
+
+}
+
+export const deleteMaterial = async ( material: Material ) => {
+
+    const supabase = await createClient();
+
+    // Delete row data
+    const { error: deleteDataError } = await supabase.from( "materials" ).delete().eq("id", material.id).eq("project_id", material.project_id);
+
+    if( deleteDataError ) throw deleteDataError.message;
+
+    // Delete file
+    if( material.type === "memos" ) return;
+    if( !material.link.includes("materials/") ) return;
+
+    const { error: deleteFileError } = await supabase.storage.from("materials_media").remove([material.link]);
+
+    if( deleteFileError ) throw deleteFileError.message;
 
 }
 

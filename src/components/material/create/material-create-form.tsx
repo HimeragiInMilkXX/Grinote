@@ -5,12 +5,13 @@ import { MaterialCreateFormInput, MaterialCreateFormOutput } from "./material-cr
 import { MaterialType, materialTypeCaptions, MaterialTypeCaptions } from "@/types/materials";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { HexAlphaColorPicker } from "react-colorful";
 import PopoverSimplfied from "@/components/miscellaneous/popover";
 import { Button } from "@/components/ui/button";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 const availableTypes: { label: MaterialTypeCaptions, value: MaterialType }[] = [
 
@@ -29,6 +30,26 @@ const MaterialCreateForm = ( { onSubmit }: { onSubmit: React.FormEventHandler<HT
 
     const link = useWatch( { control, name: "link" } );
     const file = useWatch( { control, name: "file" } );
+
+    // Check if file type is correct
+    useEffect( () => {
+
+        if( !file ) return;
+
+        const fileType = file.type;
+
+        if( ( type === "playables" && ( fileType.includes("audio/") || fileType.includes("video/") ) ) ||
+            ( type === "readonlys" && ( fileType.includes("image/*") || fileType.includes("application/pdf" ) ) ) ) return;
+
+        alert("エラー")
+
+        resetField("file");
+
+        if( !fileInputRef.current ) return;
+
+        fileInputRef.current.value = "";
+
+    }, [file])
 
     const showFile = type === "readonlys" || type === "playables"
     const showLink = type === "playables" || type === "externals"
@@ -83,6 +104,21 @@ const MaterialCreateForm = ( { onSubmit }: { onSubmit: React.FormEventHandler<HT
                     <Field data-invalid={fieldState.invalid}>
                         <FieldLabel htmlFor="material-create-name"> タスクネーム </FieldLabel>
                         <Input { ...field } id="material-create-name" aria-invalid={fieldState.invalid} placeholder="マテリアル名" autoComplete="off" />
+                        { fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                        )}
+                    </Field>
+                )}
+            />
+
+            {/* Description */}
+            <Controller
+                name="description"
+                control={control}
+                render={ ( { field, fieldState } ) => (
+                    <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="material-create-description"> 説明（選択） </FieldLabel>
+                        <Textarea className="max-h-[10vh]" {...field} id="material-create-description" aria-invalid={fieldState.invalid} placeholder="説明入れたほうがわかりやすい！" autoComplete="off" />
                         { fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                         )}
@@ -153,7 +189,8 @@ const MaterialCreateForm = ( { onSubmit }: { onSubmit: React.FormEventHandler<HT
                                     onChange={(event) =>
                                         field.onChange(event.target.files?.[0])
                                     }
-                                    type="file" id="material-create-file" autoComplete="off" />
+                                    type="file" id="material-create-file" autoComplete="off"
+                                    accept={type === "playables" ? "audio/*, video/*" : "image/*, application/pdf"}/>
 
                                 { file && <X size={16} onClick={() => {
                                     resetField("file", { defaultValue: undefined })
@@ -161,6 +198,10 @@ const MaterialCreateForm = ( { onSubmit }: { onSubmit: React.FormEventHandler<HT
                                 }} className="absolute right-3 top-1/2 -translate-y-1/2 z-2 cursor-pointer"/> }
 
                             </div>
+
+                            <FieldDescription>
+                                { type === "playables" ? "* 動画やオディオファイルだけアップしてください" : "* 写真やPDFファイルだけアップしてください"}
+                            </FieldDescription>
 
                             { fieldState.invalid && (
                                 <FieldError errors={[fieldState.error]} />

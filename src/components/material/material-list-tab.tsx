@@ -8,6 +8,7 @@ import { useSetAtom } from "jotai";
 import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay";
 import MaterialListOptionsPanel, { MaterialListOptionsPanelHandle } from "@/components/material/list-options/material-list-options-panel";
 import { getProjectMaterials } from "@/app/project/[projectId]/materials/serverActions";
+import { Button } from "../ui/button";
 
 const MaterialListTab = ( { project_id }: { project_id: string }) => {
 
@@ -74,7 +75,7 @@ const MaterialListTab = ( { project_id }: { project_id: string }) => {
 
             </div>
 
-            <MaterialList materials={materialPagination?.materials}/>
+            <MaterialList materials={materialPagination?.materials} handleSearch={handleSearch}/>
 
         </div>
 

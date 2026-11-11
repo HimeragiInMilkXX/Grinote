@@ -6,7 +6,7 @@ const ProjectPageMaterial = async ({ params }: { params: any }) => {
 
     return (
 
-        <div className="w-full pl-[10vw]">
+        <div className="w-full pl-[7.5vw] pr-[2.5vw]">
             <MaterialTabs project_id={projectId}/>
         </div>
 
