@@ -4,6 +4,21 @@
             "folderPath": "mvp\\src\\components\\richTextEditor\\",
             "isFolderOnly": true,
             "color": "foldercolorizer.color_ffff00"
+        },
+        {
+            "folderPath": "mvp\\src\\components\\assistant\\",
+            "isFolderOnly": true,
+            "color": "foldercolorizer.color_000080"
+        },
+        {
+            "folderPath": "mvp\\src\\tools\\",
+            "isFolderOnly": true,
+            "color": "foldercolorizer.color_000080"
+        },
+        {
+            "folderPath": "mvp\\src\\lib\\ai\\",
+            "isFolderOnly": true,
+            "color": "foldercolorizer.color_000080"
         }
     ]
 }

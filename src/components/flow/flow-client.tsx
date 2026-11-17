@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ReactFlow, addEdge, Node, Edge, OnConnect, applyNodeChanges, applyEdgeChanges, Background, useReactFlow, ConnectionLineType, getOutgoers, EdgeMouseHandler, Panel, OnConnectStartParams, NodeMouseHandler, ReactFlowJsonObject, ReactFlowInstance, useNodesInitialized, MiniMap, } from "@xyflow/react";
+import { ReactFlow, addEdge, Node, Edge, OnConnect, applyNodeChanges, applyEdgeChanges, Background, useReactFlow, ConnectionLineType, getOutgoers, EdgeMouseHandler, Panel, OnConnectStartParams, NodeMouseHandler, ReactFlowJsonObject, ReactFlowInstance, useNodesInitialized } from "@xyflow/react";
 import useUndoable from "use-undoable";
 
 import '@xyflow/react/dist/style.css';
@@ -19,10 +19,12 @@ import NodeDataConfirmPanel from "@/components/flow/node-data-confirm-panel";
 import { updateTutorialProgress } from "@/app/project/[projectId]/serverActions";
 import { toast } from "sonner";
 import FlowProcessLoading from "@/components/flow/flow-process-loading";
-import { atom, useSetAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
 import { treeRequiresSaveActionAtom } from "@/atoms/tree_requires_save_action_atom";
 import { isLoadingAtom } from "../miscellaneous/loading-overlay";
 import { currentStepAtom } from "../tutorial/project/project-tutorial-panel";
+import { graphEditRequestAtom } from "@/atoms/graph_edit_request_atom";
+import RequestedUpdateConfirmationPanel from "./generated/requested-update-confirmation-dialog";
 
 const nodeTypes = {
     taskNode: TaskNode
@@ -43,7 +45,7 @@ interface FlowClientProps {
 export const hasActiveTaskAtom = atom(false);
 
 function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedElements, saveGraphToNodes, project_id, isInitialEditMode = true }: FlowClientProps ) {
-
+    
     // For onboarding
     const setCurrentStepAtom = useSetAtom(currentStepAtom);
 
@@ -610,14 +612,14 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedEle
     }, [rfInstance, hasActiveTask, project_id, saveGraphToNodes, closeAllMenus, isSaving, isEditMode ] )
 
 
-    const insertByInput = useCallback(( nodes: string, edges: string ) => {
+    const insertByInput = useCallback(( nodes: string | TaskNodeType[], edges: string | Edge[] ) => {
 
         if( hasActiveTask ) return;
 
         if( selectedNode ) updateNode( selectedNode.id, { selected: false } );
 
-        const newNode: TaskNodeType[] = JSON.parse(nodes);
-        const newEdges: Edge[] = JSON.parse( edges );
+        const newNode: TaskNodeType[] = typeof nodes === "string" ? JSON.parse(nodes) : nodes;
+        const newEdges: Edge[] = typeof edges === "string" ? JSON.parse( edges ) : edges;
 
         closeAllMenus()
         setSelectedNode(null)
@@ -729,6 +731,10 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedEle
 
     }, [isEditMode])
 
+
+    // Pending ai generated changes
+    const [ graphEditRequest, setGraphEditRequest ] = useAtom(graphEditRequestAtom);;
+
     return (
         <div className='w-full h-screen'>
 
@@ -771,7 +777,6 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedEle
             >
 
                 <Background />
-                <MiniMap/>
 
                 {/* Menu */}
                 { (menuPosition && isEditMode) &&  <>
@@ -834,12 +839,30 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedEle
                     <Panel position='bottom-center'>
                         <Card>
                             <CardContent className='flex flex-col gap-3'>
-                                <p className='text-xl text-red-600'> 行動中は編集できない </p>
+                                <p className='text-xl text-red-600 text-center'> 行動中は編集できない </p>
+                                { graphEditRequest && <p className='text-xl text-red-600 text-center'> 生成された変更は行動後反映する予定 </p> }
                             </CardContent>
                         </Card>
                     </Panel>
 
                 }
+
+                {/* if AI-generated content are queued, show */}
+                <RequestedUpdateConfirmationPanel
+
+                    isOpen={!!graphEditRequest && !hasActiveTask && isEditMode}
+                    onConfirm={() => {
+
+                        if( graphEditRequest!.project_id != project_id ) return;
+
+                        insertByInput( graphEditRequest!.nodes, graphEditRequest!.edges );
+                        setGraphEditRequest( null );
+
+                    }}
+                    onDecline={() => setGraphEditRequest( null )}
+                    onPreview={() => {}}
+
+                />
 
                 {/* Reminder of if there is less than two node */}
                 {

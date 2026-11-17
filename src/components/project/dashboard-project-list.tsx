@@ -4,6 +4,7 @@ import { useSetAtom } from "jotai/react"
 import { currentMaterialTabAtom, openedMaterialTabsAtom } from "../material/material-tabs"
 import ProjectCard from "./project-card"
 import { useEffect } from "react"
+import { assistantHistoryAtom } from "@/providers/chat-provider"
 
 interface Props {
 
@@ -17,10 +18,14 @@ const DashboardProjectList = ( { projects }: Props ) => {
     const setMaterialOpenedTabs = useSetAtom( openedMaterialTabsAtom );
     const setMaterialCurrentTab = useSetAtom( currentMaterialTabAtom );
 
+    // Reset Chat
+    const setAssistantHistory = useSetAtom( assistantHistoryAtom );
+
     useEffect( () => {
 
         setMaterialCurrentTab( "list" )
         setMaterialOpenedTabs([])
+        setAssistantHistory(undefined);
 
     }, [projects])
 

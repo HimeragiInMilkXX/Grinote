@@ -1,13 +1,9 @@
-'use client'
+export default async function TestPage() {
 
-const TestPage = () => {
 
     return (
 
         <></>
-
     )
 
 }
-
-export default TestPage

@@ -1,0 +1,52 @@
+@import "./typeset.css";
+
+.assistant-scope {
+  --font-mono: var(--font-geist-mono, ui-monospace);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-ring: var(--ring);
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+}
+
+.assistant-scope .typeset-docs {
+  --typeset-font-body: var(--font-sans);
+  --typeset-font-heading: var(--font-sans);
+  --typeset-font-mono: var(--font-mono);
+  --typeset-size: 15px;
+  --typeset-leading: 1.75;
+  --typeset-flow: 1.25em;
+}
+
+/* Retain the template's composer treatment while reusing shared controls. */
+.assistant-scope [data-slot="input-group"] {
+  border-color: transparent;
+  border-radius: 1rem;
+  background-color: color-mix(in oklab, var(--input) 50%, transparent);
+  opacity: 1;
+  transition-property: color, box-shadow;
+}
+
+.assistant-scope [data-slot="input-group"]:has(
+  [data-slot="input-group-control"]:focus-visible
+) {
+  border-color: var(--ring);
+  --tw-ring-color: color-mix(in oklab, var(--ring) 30%, transparent);
+}
+
+.assistant-scope [data-slot="select-trigger"] {
+  border-color: transparent;
+  border-radius: 1rem;
+  padding-inline: 0.75rem;
+}
+
+.assistant-scope [data-slot="select-content"] {
+  border-radius: 1rem;
+}
+
+.assistant-scope [data-slot="select-item"],
+.assistant-scope [data-slot="tooltip-content"] {
+  border-radius: 0.75rem;
+}
