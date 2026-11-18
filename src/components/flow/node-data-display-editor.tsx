@@ -42,7 +42,7 @@ export const nodeDetailsFormSchema = z.object({
 
     time_limit: z.object({
 
-        hours: z.number().min(0).max(24),
+        hours: z.number().min(0).max(10),
         minutes: z.number().min(0).max(59),
         seconds: z.number().min(0).max(59)
 
@@ -239,7 +239,7 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
                                     <DurationPicker
                                         onChange={field.onChange}
                                         initialDuration={selectedNode.data.task.time_limit}
-                                        maxHours={24}
+                                        maxHours={10}
                                     />
                                     {fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />

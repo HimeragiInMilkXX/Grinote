@@ -11,7 +11,7 @@ function contextValue(value: unknown): string | null {
 }
 
 export const getGraphInformation = tool({
-  description: 'Fetch the project existing task graph and progress from the database with the provided project id',
+  description: 'Read the saved project graph before extending it or checking existing tasks. Returns flat nodes with exact IDs, flags, durations and progress, plus source(parent)-target(child) edges. Does not include positions, colors, unsaved canvas edits, or unaccepted drafts. Reuse this snapshot within the same request; refresh after reported saved changes. This is read-only; never pass its nodes directly to propose_goal_tree, which expects new-node inputs.',
   inputSchema: z.object({
     project_id: z.string().describe('The target project uuid'),
   }),

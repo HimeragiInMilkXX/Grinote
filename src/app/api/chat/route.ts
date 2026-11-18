@@ -73,8 +73,6 @@ export async function POST(req: Request) {
       : 0
   const reasoningStarts = new Map<string, { index: number; time: number }>()
 
-  console.log(messages)
-
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
       stream: result.stream,

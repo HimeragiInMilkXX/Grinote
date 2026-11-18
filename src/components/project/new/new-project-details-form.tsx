@@ -39,7 +39,7 @@ export const newProjectDetailsFormSchema = z.object({
 
     daily_time_goal: z.object({
 
-        hours: z.number().min(0).max(24),
+        hours: z.number().min(0).max(10),
         minutes: z.number().min(0).max(59),
         seconds: z.number().min(0).max(59)
 
@@ -156,7 +156,7 @@ const NewProjectDetailsForm = () => {
                                     <DurationPicker
                                         onChange={field.onChange}
                                         initialDuration={{ hours: 0, minutes: 0, seconds: 0}}
-                                        maxHours={24}
+                                        maxHours={10}
                                     />
                                     {fieldState.invalid && (
                                         <FieldError errors={[fieldState.error]} />

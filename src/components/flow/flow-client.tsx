@@ -25,6 +25,7 @@ import { isLoadingAtom } from "../miscellaneous/loading-overlay";
 import { currentStepAtom } from "../tutorial/project/project-tutorial-panel";
 import { graphEditRequestAtom } from "@/atoms/graph_edit_request_atom";
 import RequestedUpdateConfirmationPanel from "./generated/requested-update-confirmation-dialog";
+import PreviewClient from "./generated/preview-client";
 
 const nodeTypes = {
     taskNode: TaskNode
@@ -855,12 +856,22 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, getLayoutedEle
 
                         if( graphEditRequest!.project_id != project_id ) return;
 
-                        insertByInput( graphEditRequest!.nodes, graphEditRequest!.edges );
+                        setElements( current => ({
+
+                            nodes: [ ...elements.nodes, ...graphEditRequest?.nodes ],
+                            edges: [ ...elements.edges, ...graphEditRequest?.edges ]
+
+                        }), "destroyFuture", false)
                         setGraphEditRequest( null );
 
                     }}
                     onDecline={() => setGraphEditRequest( null )}
-                    onPreview={() => {}}
+
+                    getPreviewGraph={
+                        () => ({
+                            nodes: [ ...elements.nodes, ...graphEditRequest?.nodes ],
+                            edges: [ ...elements.edges, ...graphEditRequest?.edges ]}
+                        )}
 
                 />
 

@@ -21,7 +21,7 @@ function contextValue(value: unknown): string | null {
 }
 
 export const getProjectInformation = tool({
-  description: 'Fetch the project information from database with the provided project id',
+  description: 'Read saved project goal, description, deadline, daily time budget, selected work days and streak. Use when planning depends on those details; inspect before asking the user to repeat them. Reuse within the same request. This is read-only and does not return the task graph; use get_graph_info for saved nodes and progress.',
   inputSchema: z.object({
     project_id: z.string().describe('The target project uuid'),
   }),

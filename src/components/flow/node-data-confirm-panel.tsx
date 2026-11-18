@@ -88,7 +88,7 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
                                     <DurationPicker
                                         onChange={() => {}}
                                         initialDuration={data.time_limit}
-                                        maxHours={24}
+                                        maxHours={10}
                                     />
                                 </Field>
                                 { data.isLoop &&

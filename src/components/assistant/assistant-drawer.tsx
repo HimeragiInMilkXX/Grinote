@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Maximize2, Minimize2, Sparkle } from "lucide-react"
 import {useState } from "react"
 import { cn } from "cn"
+import { atom, useAtom, useSetAtom } from "jotai"
 
 const fontSans = Geist({ subsets: ["latin"], variable: "--font-sans" })
 const fontMono = Geist_Mono({
@@ -16,13 +17,17 @@ const fontMono = Geist_Mono({
     variable: "--font-geist-mono",
 })
 
+export const assistantDrawerOpenAtom = atom<boolean>(false);
+
 export default function AssistantDrawer( { children }: { children: React.ReactElement}) {
 
     const [ isMaximized, setIsMaximized ] = useState(false);
 
+    const [ open, setOpen ] = useAtom(assistantDrawerOpenAtom);
+
     return (
 
-        <Drawer swipeDirection="right" onOpenChangeComplete={() => setIsMaximized(false)}>
+        <Drawer swipeDirection="right" onOpenChangeComplete={() => setIsMaximized(false)} open={open} onOpenChange={setOpen}>
             <DrawerTrigger render={
                 <Button variant="outline" className="h-10 p-3 border! shadow rounded-full flex items-center justify-center absolute right-4.5 bottom-4.5"> <Sparkle/> </Button>}/>
             <DrawerContent className={ cn( "transition-all", isMaximized ? "w-1/2" : "" ) }>
