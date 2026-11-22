@@ -1,12 +1,16 @@
-import { TaskNodeType } from "@/types/flow";
-import { Edge } from "@xyflow/react";
+import type { TreeChangeOps } from "@/lib/tree/tree-changes";
 import { atom } from "jotai";
 
-type GraphEditRequest = {
+/** An accepted AI proposal waiting to be applied in the tree editor. Nothing is saved until the tree is saved. */
+export type GraphEditRequest = {
 
-    project_id: string,
-    nodes: TaskNodeType[];
-    edges: Edge[];
+    project_id: string;
+    goal: string;
+    ops: TreeChangeOps;
+    /** Repeating tasks with progress that the user allowed the proposal to change. */
+    allowedProtectedIds: string[];
+    /** Warnings from drafting, e.g. work records that deleting will remove. */
+    warnings: string[];
 
 }
 

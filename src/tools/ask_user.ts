@@ -7,7 +7,8 @@ export const askUser = tool({
     "Bundle questions into ONE call, preferably 1-3 questions, each with exactly 3 short, distinct choices. The user can also answer in their own words. " +
     "After calling, stop and WAIT for user answers in the tool output before making dependent plans or proposals. " +
     "Do not invent the output or ask again for information already in project tools or this conversation. " +
-    "Do not use to approve a generated tree: propose_goal_tree already has its own review card.",
+    "Do not use to approve a generated tree: propose_goal_tree already has its own review card. " +
+    "Do use it BEFORE proposing changes to a repeating task with progress (locked: loop_in_progress) when the user has not clearly asked for that change.",
   inputSchema: z.object({
     questions: z
       .array(

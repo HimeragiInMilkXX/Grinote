@@ -37,7 +37,7 @@ const PreviewClient = ( { initialNodes, initialEdges }: PreviewClientProps ) => 
     return (
         <div className="w-full aspect-video">
 
-            { ( nodes.length > 0 && edges.length > 0 ) && (
+            { nodes.length > 0 && (
 
                 <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView>
 

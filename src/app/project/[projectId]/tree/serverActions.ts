@@ -5,6 +5,8 @@ import { createActionClient } from "@/utils/supabase/actions";
 import { createClient, requireUser } from "@/utils/supabase/server";
 import { durationObjectToInterval, intervalToDurationObject } from "@/utils/utils";
 import { Edge, ReactFlowJsonObject } from "@xyflow/react";
+import { randomUUID } from "node:crypto";
+import { applyIdMap, remapNodeIds, sanitizeGraphIds, type IdMap } from "@/lib/tree/ids";
 
 const convertToTableFormat = ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => {
 
@@ -29,51 +31,146 @@ const convertToTableFormat = ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>,
 
 }
 
-export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => {
+/** Columns the app controls (on air / task completion). The tree editor never writes them. */
+const SYSTEM_COLUMNS = [ "isRoot", "isCompleted", "repetitions_completed" ] as const;
 
-    const convertedTasks: TableTaskRows = convertToTableFormat( rawData, project_id );
+/** Postgres unique_violation on nodes.id, e.g. `Key (id)=(...) already exists.` */
+const conflictingIdFrom = ( error: { code?: string, details?: string | null, message?: string } ): string | null => {
+    if( error.code !== "23505" ) return null;
+    const match = /\(id\)=\(([0-9a-f-]{36})\)/i.exec( `${error.details ?? ""} ${error.message ?? ""}` );
+    return match?.[1] ?? null;
+}
+
+const MAX_INSERT_ATTEMPTS = 3;
+
+/**
+ * Save the canvas to `nodes`. Returns `idMap` (canvas id -> saved id) for nodes that had to get a
+ * new id because their id was invalid, duplicated, or already used by a row outside this project.
+ * The client applies it to its canvas.
+ */
+export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ): Promise<{ idMap: IdMap }> => {
 
     const supabase = await createActionClient();
 
-    const { data: previousNodesIdArray, error: previousNodesIdError } = await supabase.from('nodes').select('id').eq( 'project_id', project_id );
+    const { data: previousRowsArray, error: previousNodesIdError } = await supabase.from('nodes').select('*').eq( 'project_id', project_id );
 
     if( previousNodesIdError ) throw previousNodesIdError;
 
-    const currentNodesId = new Set( Object.keys( convertedTasks ) );
-    const previousNodesId = new Set( previousNodesIdArray?.map((node) => node.id) ?? [] );
+    const previousRows = new Map<string, TableTaskRow & { time_limit: string }>( ( previousRowsArray ?? [] ).map( row => [ row.id, row ] ) );
 
-    // UPSERT(UPDATE AND INSERT)
-    const nodesToUpsert = Array.from(currentNodesId).map( id => {
+    // ---------- ID GUARDS ----------
+    const idMap: IdMap = {};
+    const recordRemap = ( map: IdMap ) => {
+        for( const [ from, to ] of Object.entries( map ) ) {
+            // Chain remaps so the client gets canvas id -> final id
+            const original = Object.keys( idMap ).find( k => idMap[k] === from );
+            idMap[original ?? from] = to;
+        }
+    };
+
+    // Every node id must be a UUID and unique in the payload, and edges must point at payload nodes
+    const sanitized = sanitizeGraphIds( { nodes: rawData.nodes, edges: rawData.edges } );
+    let graph = sanitized.graph;
+    recordRemap( sanitized.idMap );
+
+    // Ids new to this project must not belong to a row of another project. Rows of the user's other
+    // projects are visible here and an upsert would MOVE them into this project; rows of other users
+    // are hidden by RLS and are caught by the plain insert below (unique violation).
+    const newIds = graph.nodes.map( n => n.id ).filter( id => !previousRows.has( id ) );
+
+    if( newIds.length > 0 ) {
+        const { data: elsewhere, error: elsewhereError } = await supabase.from( "nodes" ).select( "id" ).in( "id", newIds );
+        if( elsewhereError ) throw elsewhereError;
+        const usedElsewhere = ( elsewhere ?? [] ).map( row => row.id as string );
+        if( usedElsewhere.length > 0 ) {
+            const remapped = remapNodeIds( graph, usedElsewhere, new Set( [ ...previousRows.keys(), ...usedElsewhere ] ) );
+            graph = remapped.graph;
+            recordRemap( remapped.idMap );
+        }
+    }
+
+    const convertedTasks: TableTaskRows = convertToTableFormat( { ...rawData, ...graph }, project_id );
+
+    // Root and completed rows are locked: only their canvas position may change, and they are never deleted
+    const lockedIds = new Set( Array.from( previousRows.values() ).filter( row => row.isRoot || row.isCompleted ).map( row => row.id ) );
+
+    const previousNodesId = new Set( previousRows.keys() );
+
+    const toRow = ( id: string ) => {
 
         const node = convertedTasks[id];
+        const previous = previousRows.get( id );
 
-        if( !node ) { return { id, project_id, parent_node_id: null }}
+        if( previous && lockedIds.has( id ) ) {
+            return { ...previous, pos_x: node.pos_x, pos_y: node.pos_y };
+        }
 
         const time_limit = durationObjectToInterval( node.time_limit );
 
-        return {...node, id, project_id, parent_node_id: null, time_limit }
+        // System columns always come from the database (or defaults for new rows), so a stale canvas
+        // cannot undo progress recorded elsewhere, and the editor cannot create another root.
+        const systemColumns = {
+            isRoot: false,
+            isCompleted: previous?.isCompleted ?? false,
+            repetitions_completed: previous?.repetitions_completed ?? 0,
+        };
 
-    })
+        const row: Record<string, unknown> = { ...node };
+        SYSTEM_COLUMNS.forEach( column => delete row[column] );
 
-    const { error: upsertError } = await supabase.from( "nodes" ).upsert( nodesToUpsert, { onConflict: "id" } );
+        return { ...row, ...systemColumns, id, project_id, parent_node_id: null, time_limit }
 
-    if( upsertError ) throw upsertError;
+    }
 
-    // DELETE
-    const nodesIdPendingDelete = Array.from( previousNodesId.difference( currentNodesId ) );
+    // UPDATE rows that already belong to this project (so the upsert can only hit this project's rows)
+    const existingRows = Object.keys( convertedTasks ).filter( id => previousRows.has( id ) ).map( toRow );
+
+    if( existingRows.length > 0 ) {
+        const { error: upsertError } = await supabase.from( "nodes" ).upsert( existingRows, { onConflict: "id" } );
+        if( upsertError ) throw upsertError;
+    }
+
+    // INSERT new rows. Never upsert them: a conflict must fail, not overwrite. If the id is taken by a
+    // row hidden by RLS, give that node a fresh id and retry.
+    for( let attempt = 1; ; attempt++ ) {
+
+        const insertIds = Object.keys( convertedTasks ).filter( id => !previousRows.has( id ) );
+        if( insertIds.length === 0 ) break;
+
+        const { error: insertError } = await supabase.from( "nodes" ).insert( insertIds.map( toRow ) );
+        if( !insertError ) break;
+
+        const conflictId = conflictingIdFrom( insertError );
+        if( !conflictId || !convertedTasks[conflictId] || previousRows.has( conflictId ) || attempt >= MAX_INSERT_ATTEMPTS ) throw insertError;
+
+        const fresh = randomUUID();
+        convertedTasks[fresh] = { ...convertedTasks[conflictId], id: fresh };
+        delete convertedTasks[conflictId];
+        graph = applyIdMap( graph, { [conflictId]: fresh } );
+        recordRemap( { [conflictId]: fresh } );
+
+    }
+
+    const currentNodesId = new Set( Object.keys( convertedTasks ) );
+
+    // DELETE (never locked rows)
+    const nodesIdPendingDelete = Array.from( previousNodesId.difference( currentNodesId ) ).filter( id => !lockedIds.has( id ) );
 
     if( nodesIdPendingDelete.length > 0 ) {
 
-        const { error: deleteError } = await supabase.from( "nodes" ).delete().in('id', nodesIdPendingDelete);
+        const { error: deleteError } = await supabase.from( "nodes" ).delete().in('id', nodesIdPendingDelete).eq( "project_id", project_id );
 
         if( deleteError ) throw deleteError;
 
     }
 
-    // SAVE PARENTAL RELATIONS
-    if( rawData.edges.length > 0 ) {
+    // SAVE PARENTAL RELATIONS (locked rows keep their saved parent; both ends must be nodes of this save,
+    // so parent_node_id never points outside the project)
+    const edgesToSave = graph.edges.filter( edge => !lockedIds.has( edge.target ) && currentNodesId.has( edge.source ) && currentNodesId.has( edge.target ) );
 
-        const updatePromises = rawData.edges.map(edge =>
+    if( edgesToSave.length > 0 ) {
+
+        const updatePromises = edgesToSave.map(edge =>
             supabase
                 .from("nodes")
                 .update({ parent_node_id: edge.source })
@@ -87,6 +184,28 @@ export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeTyp
         if (failedUpdate?.error) throw failedUpdate.error;
 
     }
+
+    return { idMap };
+
+}
+
+/** Number of work records per node, used to warn before deleting nodes (records cascade on delete). */
+export const countRecordsForNodes = async ( project_id: string, node_ids: string[] ): Promise<Record<string, number>> => {
+
+    if( node_ids.length === 0 ) return {};
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    const { data, error } = await supabase.from( "records" ).select( "node_id" ).eq( "project_id", project_id ).in( "node_id", node_ids );
+
+    if( error ) throw error;
+
+    return ( data ?? [] ).reduce<Record<string, number>>( ( counts, row ) => {
+        counts[row.node_id] = ( counts[row.node_id] ?? 0 ) + 1;
+        return counts;
+    }, {} );
 
 }
 

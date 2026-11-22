@@ -32,10 +32,25 @@ export interface TableTaskRow extends Task {
 
 export type TableTaskRows = Record<string, TableTaskRow>;
 
+export type PreviewChangeKind = "added" | "updated" | "moved" | "deleted";
+
+/** Change info attached to nodes in the AI proposal preview only; never saved. */
+export type PreviewChange = {
+
+    kinds: PreviewChangeKind[];
+    before?: Partial<Task>;
+    after?: Partial<Task>;
+    fromParent?: string | null;
+    toParent?: string | null;
+    reasons?: string[];
+
+}
+
 export type TaskNodeData = {
 
     label: string;
     task: Task;
+    previewChange?: PreviewChange;
 
 }
 

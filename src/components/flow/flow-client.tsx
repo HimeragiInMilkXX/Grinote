@@ -25,6 +25,9 @@ import { isLoadingAtom } from "../miscellaneous/loading-overlay";
 import { useTutorialStep } from "@/hooks/useTutorialStep";
 import { graphEditRequestAtom } from "@/atoms/graph_edit_request_atom";
 import RequestedUpdateConfirmationPanel from "./generated/requested-update-confirmation-dialog";
+import { applyTreeChanges, rekeyAddOps, type TreeChangeOps } from "@/lib/tree/tree-changes";
+import { applyIdMap, newNodeId, remapNodeIds, type IdMap } from "@/lib/tree/ids";
+import type { GraphEditRequest } from "@/atoms/graph_edit_request_atom";
 
 const nodeTypes = {
     taskNode: TaskNode
@@ -40,20 +43,35 @@ interface FlowClientProps {
     initialNodes: TaskNodeType[];
     initialEdges: Edge[];
     project_id: string;
-    saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => Promise<void>;
+    saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => Promise<{ idMap: IdMap }>;
     isInitialEditMode?: boolean
 
 }
 
 export const hasActiveTaskAtom = atom(false);
 
-const createTaskNode = ( position: { x: number, y: number }, isLoop: boolean, isAction: boolean ): TaskNodeType => {
+/**
+ * Accepted AI drafts were built against the saved tree; give their new nodes fresh ids if any
+ * collide with the current canvas. Cached per request so the preview and the confirmed result
+ * use the same ids.
+ */
+const rekeyedOpsCache = new WeakMap<GraphEditRequest, TreeChangeOps>();
+
+const opsForCanvas = ( request: GraphEditRequest, canvasIds: Set<string> ): TreeChangeOps => {
+    const cached = rekeyedOpsCache.get( request );
+    if( cached && !cached.add.some( a => canvasIds.has( a.key ) ) ) return cached;
+    const ops = rekeyAddOps( request.ops, canvasIds );
+    rekeyedOpsCache.set( request, ops );
+    return ops;
+}
+
+const createTaskNode = ( position: { x: number, y: number }, isLoop: boolean, isAction: boolean, takenIds: Set<string> ): TaskNodeType => {
 
     const name = isAction ? ( isLoop ? '繰り返し行動' : '行動' ) : "レーベル";
 
     return {
 
-        id: crypto.randomUUID(),
+        id: newNodeId( takenIds ),
         position,
         data: { label: name, task: {
 
@@ -473,7 +491,7 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
         // Unfocus previous task
         if( selectedNode ) updateNode( selectedNode.id, { selected: false } );
 
-        const newNode = createTaskNode( screenToFlowPosition({ x: e.clientX, y: e.clientY }), isLoop, isAction );
+        const newNode = createTaskNode( screenToFlowPosition({ x: e.clientX, y: e.clientY }), isLoop, isAction, new Set( elements.nodes.map( n => n.id ) ) );
 
         // Add new node and set focus
         setElements((current) => ({
@@ -543,7 +561,13 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
             setIsSaving(true)
             setIsLoading(true)
 
-            await saveGraphToNodes( rfInstance.toObject(), project_id );
+            const { idMap } = await saveGraphToNodes( rfInstance.toObject(), project_id );
+
+            // The server gave some nodes new ids (an id was invalid or already used elsewhere): follow them
+            if( Object.keys( idMap ).length > 0 ) {
+                setElements( current => applyIdMap( current, idMap ), "destroyFuture", true );
+                setSelectedNode( null );
+            }
 
             toast.success("変更は保存されました！", { position: "top-left" });
 
@@ -573,15 +597,42 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
 
         if( selectedNode ) updateNode( selectedNode.id, { selected: false } );
 
-        const newNodes: TaskNodeType[] = typeof nodes === "string" ? JSON.parse(nodes) : nodes;
-        const newEdges: Edge[] = typeof edges === "string" ? JSON.parse( edges ) : edges;
+        let parsedNodes: TaskNodeType[];
+        let parsedEdges: Edge[];
+
+        try {
+            parsedNodes = typeof nodes === "string" ? JSON.parse(nodes) : nodes;
+            parsedEdges = typeof edges === "string" ? ( edges.trim() ? JSON.parse( edges ) : [] ) : edges;
+            if( !Array.isArray( parsedNodes ) || !Array.isArray( parsedEdges ) ) throw new Error();
+        } catch {
+            toast.error("JSONデータを読み取れませんでした。", { position: "top-left" });
+            return;
+        }
+
+        // Imported data is a copy: every imported node gets a fresh id, so pasting twice or pasting
+        // nodes from another project never reuses an id that already exists.
+        const currentIds = new Set( elements.nodes.map( n => n.id ) );
+        const importedIds = parsedNodes.filter( n => n && typeof n.id === "string" ).map( n => n.id );
+        const { graph: imported, idMap } = remapNodeIds( { nodes: parsedNodes.filter( n => n && typeof n.id === "string" ), edges: [] }, importedIds, currentIds );
+
+        // Keep imported edges whose ends exist (imported or already on the canvas), one parent per node
+        const hasParent = new Set( elements.edges.map( e => e.target ) );
+        const newEdges: Edge[] = [];
+        parsedEdges.forEach( e => {
+            const source = idMap[e?.source] ?? e?.source;
+            const target = idMap[e?.target] ?? e?.target;
+            const known = ( id: string ) => currentIds.has( id ) || imported.nodes.some( n => n.id === id );
+            if( !source || !target || source === target || !known( source ) || !known( target ) || hasParent.has( target ) ) return;
+            hasParent.add( target );
+            newEdges.push({ ...e, id: `${source}-${target}`, source, target });
+        });
 
         closeAllMenus()
         setSelectedNode(null)
 
         setElements( current => ({
 
-            nodes: [ ...current.nodes, ...newNodes ],
+            nodes: [ ...current.nodes, ...imported.nodes ],
             edges: [ ...newEdges, ...current.edges ]
 
         }), "destroyFuture")
@@ -629,7 +680,7 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
 
         const newNode: TaskNodeType = {
 
-            id: crypto.randomUUID(),
+            id: newNodeId( new Set( elements.nodes.map( n => n.id ) ) ),
             selected: true,
             position: screenToFlowPosition( { x: e.clientX, y: e.clientY } ),
             data: selectedNode.data,
@@ -674,22 +725,37 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
     // Pending ai generated changes
     const [ graphEditRequest, setGraphEditRequest ] = useAtom(graphEditRequestAtom);
 
-    const mergeWithEditRequest = ( current: Elements ): Elements => ({
+    // Re-apply the accepted proposal to the CURRENT canvas, which may be newer than the draft
+    const editRequestForProject = graphEditRequest?.project_id === project_id ? graphEditRequest : null;
 
-        nodes: [ ...current.nodes, ...( graphEditRequest?.nodes ?? [] ) ],
-        edges: [ ...current.edges, ...( graphEditRequest?.edges ?? [] ) ]
-
-    })
+    const getEditResult = () => editRequestForProject
+        ? applyTreeChanges(
+            elements,
+            opsForCanvas( editRequestForProject, new Set( elements.nodes.map( n => n.id ) ) ),
+            { allowedProtectedIds: editRequestForProject.allowedProtectedIds },
+        )
+        : null;
 
     const confirmEditRequest = () => {
 
-        if( graphEditRequest?.project_id !== project_id ) return;
+        const result = getEditResult();
 
-        setElements( mergeWithEditRequest, "destroyFuture", false )
+        if( !result || result.errors.length > 0 ) return;
+
+        if( selectedNode ) updateNode( selectedNode.id, { selected: false } );
+        closeAllMenus();
+        setSelectedNode( null );
+
+        // One undoable step: apply the changes and lay out the merged tree
+        setElements( () => getLayoutedElements( result.graph.nodes, result.graph.edges ), "destroyFuture", false );
         setGraphEditRequest( null );
 
         // Accepted proposals are only persisted once the tree is saved
         setRequiresSaveAction( true );
+
+        advanceTutorial( 0 );
+
+        refocusToClient();
 
     }
 
@@ -780,10 +846,15 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
                 {/* if AI-generated content are queued, show */}
                 <RequestedUpdateConfirmationPanel
 
-                    isOpen={!!graphEditRequest && canEdit}
+                    isOpen={!!editRequestForProject && canEdit}
                     onConfirm={confirmEditRequest}
                     onDecline={() => setGraphEditRequest( null )}
-                    getPreviewGraph={() => mergeWithEditRequest( elements )}
+                    goal={editRequestForProject?.goal}
+                    warnings={editRequestForProject?.warnings}
+                    getPreview={() => {
+                        const result = getEditResult();
+                        return result ? { current: elements, result } : null;
+                    }}
 
                 />
 

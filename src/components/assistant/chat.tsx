@@ -29,6 +29,7 @@ import { useAtom, useSetAtom } from "jotai"
 import { graphEditRequestAtom } from "@/atoms/graph_edit_request_atom"
 import { graphEditReviewedProposalAtom } from "@/atoms/graph_edit_reviewed_proposal_atom"
 import { redirect } from "next/navigation"
+import { withoutOpsFor } from "@/lib/tree/tree-changes"
 
 export function Chat({ project_id }: { project_id: string }) {
 
@@ -133,18 +134,25 @@ export function Chat({ project_id }: { project_id: string }) {
                 <ProposalQuestionCard
                   part={pendingProposal}
                   key={pendingProposal.toolCallId}
-                  onAccept={() => {
+                  onAccept={(allowedProtectedIds) => {
+                    const output = pendingProposal.output
+                    if (!output?.ops) return
+                    const deniedIds = output.protectedNodes
+                      .map((node) => node.id)
+                      .filter((id) => !allowedProtectedIds.includes(id))
                     setGraphEditRequest({
                       project_id,
-                      edges: pendingProposal.output?.graph.edges!,
-                      nodes: pendingProposal.output?.graph.nodes!
+                      goal: output.goal,
+                      ops: withoutOpsFor(output.ops, deniedIds),
+                      allowedProtectedIds,
+                      warnings: output.warnings,
                     })
                     dismissProposal(pendingProposal.toolCallId)
                     redirect(`/project/${project_id}/tree?isInitialEditMode=true`)
                   }}
                   onReject={() => dismissProposal(pendingProposal.toolCallId)}
                   onRequestChanges={request => {
-                    sendMessage({ text: `Please revise the proposed goal tree. My requested changes: ${request}` }, { body: { model: resolvedModel, project_id } })
+                    sendMessage({ text: `Please revise the proposed tree changes. My requested changes: ${request}` }, { body: { model: resolvedModel, project_id } })
                     dismissProposal(pendingProposal.toolCallId)
                   }}
                 />

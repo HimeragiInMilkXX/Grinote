@@ -10,6 +10,7 @@ import {
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace"
+import { ChangeList, DiffCountBadges } from "@/components/flow/generated/change-format"
 
 export function ProposeGoalTreePart({
   part,
@@ -20,6 +21,7 @@ export function ProposeGoalTreePart({
 }) {
 
   if (part.state === "output-available") {
+    const diff = part.output?.diff
     return (
       <TraceCollapsible>
         <TraceCollapsibleTrigger>
@@ -28,16 +30,24 @@ export function ProposeGoalTreePart({
               <StatusIcon />
             </TraceIcon>
             <TraceTitle>
-              Generated goal tree
+              <span className="inline-flex flex-wrap items-center gap-2">
+                ツリー変更案 {diff && <DiffCountBadges diff={diff} />}
+              </span>
             </TraceTitle>
           </TraceLine>
         </TraceCollapsibleTrigger>
 
         <TraceCollapsibleContent>
-          {/* Display the tool's JSON output */}
-          <pre className="max-h-96 overflow-auto whitespace-pre-wrap wrap-break-word rounded-md bg-muted p-4 text-xs">
-            {JSON.stringify(part.output, null, 2)}
-          </pre>
+          <div className="flex flex-col gap-3 rounded-md bg-muted p-3">
+            {part.output?.goal && <p className="text-xs font-medium">{part.output.goal}</p>}
+            {diff ? <ChangeList diff={diff} /> : null}
+            <details>
+              <summary className="cursor-pointer text-[11px] text-muted-foreground">JSON</summary>
+              <pre className="max-h-72 overflow-auto whitespace-pre-wrap wrap-break-word text-[10px]">
+                {JSON.stringify(part.output, null, 2)}
+              </pre>
+            </details>
+          </div>
         </TraceCollapsibleContent>
       </TraceCollapsible>
     )
@@ -50,7 +60,7 @@ export function ProposeGoalTreePart({
           <StatusIcon status="error" />
         </TraceIcon>
         <TraceTitle>
-          Failed to generate goal tree
+          ツリー変更案の作成に失敗しました
         </TraceTitle>
       </TraceLine>
     )
@@ -66,8 +76,8 @@ export function ProposeGoalTreePart({
       </TraceIcon>
       <TraceTitle>
         {isStreaming
-          ? "Generating goal tree..."
-          : "Goal-tree generation interrupted"}
+          ? "ツリー変更案を作成中..."
+          : "ツリー変更案の作成が中断されました"}
       </TraceTitle>
     </TraceLine>
   )
