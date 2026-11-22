@@ -2,7 +2,12 @@
 
 import { Tabs, TabsContent, TabsList } from "../ui/tabs"
 import MaterialListTab from "./material-list-tab";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
+import { useEffect } from "react";
+import { assistantPageContextAtom } from "@/atoms/assistant_page_context_atom";
+import { memoUnsavedAtom } from "@/atoms/material_atoms";
+import { UNSAVED_MEMO_CONFIRM } from "./memo/use-unsaved-memo";
+import { useAtomValue } from "jotai";
 import MaterialItemTab from "./material-item-tab";
 import MaterialTabTrigger from "./material-tab-trigger";
 import { Home } from "lucide-react";
@@ -20,7 +25,22 @@ const MaterialTabs = ( { project_id }: { project_id: string }) => {
 
     const [ currentTab, setCurrentTab ] = useAtom(currentMaterialTabAtom);
 
+    // tell the assistant which material is open
+    const setPageContext = useSetAtom( assistantPageContextAtom );
+
+    useEffect( () => {
+
+        setPageContext( { page: "materials", material_id: currentTab === "list" ? undefined : Number( currentTab ) } );
+
+    }, [ currentTab, setPageContext ] );
+
+    useEffect( () => () => setPageContext( { page: "other" } ), [ setPageContext ] );
+
+    const unsavedMemoIds = useAtomValue( memoUnsavedAtom );
+
     const closeTab = ( id: number ) => {
+
+        if( unsavedMemoIds.includes( id ) && !window.confirm( UNSAVED_MEMO_CONFIRM ) ) return;
 
         setOpenedTabs( ot => ot.filter( tab => tab.id != id ) );
         setCurrentTab( "list" )
@@ -33,7 +53,7 @@ const MaterialTabs = ( { project_id }: { project_id: string }) => {
 
                 <div className="max-h-full pb-12">
                     <div className="flex flex-col overflow-scroll scrollbar-none max-h-full box-border">
-                        { openedTabs?.map( ( { id, name } ) => <MaterialTabTrigger closeTab={closeTab} value={String(id)} key={id} label={name}/> )}
+                        { openedTabs?.map( ( { id, name } ) => <MaterialTabTrigger closeTab={closeTab} value={String(id)} key={id} label={name} unsaved={unsavedMemoIds.includes( id )}/> )}
                     </div>
                 </div>
 

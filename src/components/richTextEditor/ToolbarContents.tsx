@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useId } from 'react'
 import { ChainedCommands, Editor } from '@tiptap/core'
 import Control from './Control'
 import Separator from './Separater'
@@ -66,9 +66,13 @@ const ColorPickerPopover = ( { color, onChange, children }: { color: string, onC
 
 interface ToolbarContentsProps {
     editor: Editor
+    material_id: number
 }
 
-export default function ToolbarContents({ editor }: ToolbarContentsProps) {
+export default function ToolbarContents({ editor, material_id }: ToolbarContentsProps) {
+
+    // unique per editor so several editors can be mounted at once
+    const imageInputId = useId()
 
     // Run a focused, chained editor command
     const run = ( command: Command ) => command( editor.chain().focus() ).run()
@@ -90,7 +94,8 @@ export default function ToolbarContents({ editor }: ToolbarContentsProps) {
         const file = e.target.files?.[0]
         if (!file) return
 
-        uploadEmbeddedImage(file).then((res) => run( c => c.setImage({ src: res }) ))
+        uploadEmbeddedImage(material_id, file).then((res) => run( c => c.setImage({ src: res }) ))
+        e.target.value = ""
     }
 
     const [currentColor, setCurrentColor] = useState<string>("#000000")
@@ -226,9 +231,9 @@ export default function ToolbarContents({ editor }: ToolbarContentsProps) {
                 <Button variant="outline" size="icon" className="h-fit rounded-none p-1.5" onClick={setLink}> <LinkIcon className="w-4 h-4" /> </Button>
 
                 <Button variant="outline" size="icon" className="h-fit rounded-none p-1.5">
-                    <label htmlFor="image" className="cursor-pointer"><Image className="w-4 h-4" /></label>
+                    <label htmlFor={imageInputId} className="cursor-pointer"><Image className="w-4 h-4" /></label>
                 </Button>
-                <input type="file" accept="image/*" onChange={onImageUpload} hidden name="image" id="image"/>
+                <input type="file" accept="image/*" onChange={onImageUpload} hidden name="image" id={imageInputId}/>
 
                 <Control editorKey="codeBlock" editor={editor} onChange={() => run( c => c.toggleCodeBlock() )} title="Code block"> <SquareCode className="w-4 h-4" /> </Control>
                 <Control editorKey="code" editor={editor} onChange={() => run( c => c.toggleCode() )} title="Code"> <Code className="w-4 h-4" /> </Control>

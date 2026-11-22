@@ -25,15 +25,19 @@ export function ReasoningPart({
 }) {
   const [open, setOpen] = React.useState<boolean>()
   const running = isStreaming && part.state === "streaming"
-  const status = running ? "running" : undefined
+  // The stream ended while this block was still being written.
+  const cutOff = !isStreaming && part.state === "streaming"
+  const status = running ? "running" : cutOff ? "error" : undefined
 
   const line = (
     <TraceLine status={status}>
       <TraceIcon>
         <StatusIcon status={status} />
       </TraceIcon>
-      <TraceTitle>{running ? "Thinking" : "Thought"}</TraceTitle>
-      {!running && duration !== undefined && (
+      <TraceTitle>
+        {running ? "Thinking" : cutOff ? "思考が中断されました" : "Thought"}
+      </TraceTitle>
+      {!running && !cutOff && duration !== undefined && (
         <TraceDescription>
           {Math.max(1, Math.round(duration / 1000))}s
         </TraceDescription>

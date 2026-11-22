@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useId } from "react";
 
 import WavesurferPlayer from '@wavesurfer/react'
 import WaveSurfer from "wavesurfer.js";
@@ -14,7 +14,10 @@ import { cn } from "cn";
 // Base UI sliders report `number | readonly number[]`; we only use single-thumb sliders
 const firstValue = ( value: number | readonly number[] ) => typeof value === "number" ? value : value[0]
 
-const AudioView = ( { src, title = "マテリアル名", className = "" }: { src: string, title?: string, className?: string } ) => {
+const AudioView = ( { src, title = "マテリアル名", className = "" }: { src: string, title?: React.ReactNode, className?: string } ) => {
+
+    // unique timeline container so several players can be mounted at once
+    const timelineId = "audio-view-timeline-" + useId().replace( /[^a-zA-Z0-9_-]/g, "" );
 
 
     const [ wavesurfer, setWavesurfer ] = useState<WaveSurfer | null>(null);
@@ -36,10 +39,10 @@ const AudioView = ( { src, title = "マテリアル名", className = "" }: { src
     const plugins = useMemo( () => {
 
         return [
-            Timeline.create({ container: '#audio-view-timeline' })
+            Timeline.create({ container: "#" + timelineId })
         ]
 
-    }, [])
+    }, [ timelineId ])
 
     // Zoom
     const [ minPxPerSec, setMinPxPerSec ] = useState(0);
@@ -62,8 +65,8 @@ const AudioView = ( { src, title = "マテリアル名", className = "" }: { src
     return (
 
         <>
-            <div className="w-full flex justify-between px-3 items-center sticky top-0 z-2 bg-white py-6 border-b">
-                <h3 className="text-2xl"> { title } </h3>
+            <div className="w-full flex justify-between px-3 items-center sticky top-0 z-2 bg-white py-6 border-b gap-3">
+                { typeof title === "string" ? <h3 className="text-2xl"> { title } </h3> : title }
                 {/* Play */}
                 <Button variant="ghost" className={`${ isPlaying ? "bg-red-300 hover:bg-red-400" : "bg-green-300 hover:bg-green-400"} py-3 px-4.5`} onClick={onPlayPause}> { isPlaying ? <div className="flex items-center gap-1.5 leading-tight">Pause <Pause/></div> : <div className="flex items-center gap-1.5 leading-tight">Play <Play/></div> } </Button>
             </div>
@@ -78,7 +81,7 @@ const AudioView = ( { src, title = "マテリアル名", className = "" }: { src
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
                     />
-                    <div id="audio-view-timeline"/>
+                    <div id={timelineId}/>
                     <div className="items-center flex justify-between ">
                         {/* Volume */}
                         <div className="flex items-center gap-1.5 grow-[0.3]">

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { treeRequiresSaveActionAtom } from "@/atoms/tree_requires_save_action_atom";
+import { memoUnsavedAtom } from "@/atoms/material_atoms";
 import { useAtomValue } from "jotai/react";
 
 type Props = {
@@ -58,7 +59,10 @@ const ProjectNavigation = ( { projectId }: Props ) => {
     // Check Tree Unsaved
     const unsavedChanges = useAtomValue( treeRequiresSaveActionAtom );
 
-    const hasUnsavedChanges = useMemo( () => unsavedChanges.projectId === projectId && unsavedChanges.requiresSave, [ unsavedChanges ] );
+    // unsaved memo edits (materials page, or the material sheet on tree / on-air)
+    const unsavedMemoIds = useAtomValue( memoUnsavedAtom );
+
+    const hasUnsavedChanges = useMemo( () => ( unsavedChanges.projectId === projectId && unsavedChanges.requiresSave ) || unsavedMemoIds.length > 0, [ unsavedChanges, unsavedMemoIds, projectId ] );
 
     return (
         <nav className="absolute top-1/2 -translate-y-1/2 left-16 z-10">

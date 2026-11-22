@@ -5,7 +5,7 @@ import { PromptForm } from "@/components/assistant/prompt-form"
 import { QuestionCard } from "@/components/assistant/question-card"
 import { StatusIcon } from "@/components/assistant/status-icon"
 import { Suggestions } from "@/components/assistant/suggestions"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ReplyFallback } from "@/components/assistant/reply-fallback"
 import {
   Empty,
   EmptyContent,
@@ -30,12 +30,35 @@ import { graphEditRequestAtom } from "@/atoms/graph_edit_request_atom"
 import { graphEditReviewedProposalAtom } from "@/atoms/graph_edit_reviewed_proposal_atom"
 import { redirect } from "next/navigation"
 import { withoutOpsFor } from "@/lib/tree/tree-changes"
+import { useAtomValue } from "jotai"
+import { assistantPageContextAtom } from "@/atoms/assistant_page_context_atom"
+import { readableErrorMessage } from "@/lib/ai/reply-status"
 
 export function Chat({ project_id }: { project_id: string }) {
 
   const setGraphEditRequest = useSetAtom(graphEditRequestAtom);
 
-  const { messages, sendMessage, regenerate, status, stop, error, addToolOutput, setModel, resolvedModel, isBusy, lastMessage, pendingQuestion, pendingProposal, models } = useChatContext();
+  // what the user is looking at (open material / active task), sent with every request
+  const context = useAtomValue(assistantPageContextAtom);
+
+  const { messages, sendMessage, regenerate, status, stop, error, addToolOutput, setModel, resolvedModel, isBusy, lastMessage, pendingQuestion, pendingProposal, models, replyIssue, isStalled, dismissStall } = useChatContext();
+
+  const body = { model: resolvedModel, project_id, context }
+
+  // The last turn went wrong (or is stuck): show a card with a way forward.
+  const fallbackKind = isBusy ? (isStalled ? "stalled" : null) : replyIssue
+  const fallbackActions = {
+    // Drops a trailing assistant message, or resends after a trailing user one.
+    retry: () => regenerate({ body }),
+    sendText: (text: string) => sendMessage({ text }, { body }),
+    wait: dismissStall,
+    stopAndRetry: async () => {
+      // stop + regenerate can land in one render, so reset the detector here.
+      dismissStall()
+      await stop()
+      await regenerate({ body })
+    },
+  }
 
   const [ reviewedIds, setReviewedIds ] = useAtom<string[]>( graphEditReviewedProposalAtom );
 
@@ -65,7 +88,7 @@ export function Chat({ project_id }: { project_id: string }) {
                 onSelect={(prompt) =>
                   sendMessage(
                     { text: prompt },
-                    { body: { model: resolvedModel, project_id } }
+                    { body: { model: resolvedModel, project_id, context } }
                   )
                 }
               />
@@ -91,7 +114,7 @@ export function Chat({ project_id }: { project_id: string }) {
                           ? () =>
                               regenerate({
                                 messageId: message.id,
-                                body: { model: resolvedModel, project_id },
+                                body: { model: resolvedModel, project_id, context },
                               })
                           : undefined
                       }
@@ -114,6 +137,19 @@ export function Chat({ project_id }: { project_id: string }) {
                     </Message>
                   </MessageScrollerItem>
                 )}
+                {fallbackKind && (
+                  <MessageScrollerItem messageId="reply-fallback">
+                    <ReplyFallback
+                      kind={fallbackKind}
+                      errorMessage={readableErrorMessage(error)}
+                      autoRetried={
+                        lastMessage?.role === "assistant" &&
+                        lastMessage.metadata?.autoRetried
+                      }
+                      actions={fallbackActions}
+                    />
+                  </MessageScrollerItem>
+                )}
               </MessageScrollerContent>
               {pendingQuestion && (
                 <QuestionCard
@@ -123,7 +159,7 @@ export function Chat({ project_id }: { project_id: string }) {
                       tool: "ask_user",
                       toolCallId,
                       output: answer,
-                      options: { body: { model: resolvedModel, project_id } },
+                      options: { body: { model: resolvedModel, project_id, context } },
                     })
                   }
                 />
@@ -152,7 +188,7 @@ export function Chat({ project_id }: { project_id: string }) {
                   }}
                   onReject={() => dismissProposal(pendingProposal.toolCallId)}
                   onRequestChanges={request => {
-                    sendMessage({ text: `Please revise the proposed tree changes. My requested changes: ${request}` }, { body: { model: resolvedModel, project_id } })
+                    sendMessage({ text: `Please revise the proposed tree changes. My requested changes: ${request}` }, { body: { model: resolvedModel, project_id, context } })
                     dismissProposal(pendingProposal.toolCallId)
                   }}
                 />
@@ -164,19 +200,13 @@ export function Chat({ project_id }: { project_id: string }) {
       )}
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 px-6 pb-6">
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Request failed</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
         <PromptForm
           models={models}
           model={resolvedModel}
           onModelChange={setModel}
           isBusy={isBusy}
           onSubmit={(text) =>
-            sendMessage({ text }, { body: { model: resolvedModel, project_id } })
+            sendMessage({ text }, { body: { model: resolvedModel, project_id, context } })
           }
           onStop={() => stop()}
         />

@@ -8,6 +8,8 @@ import { useAtom } from "jotai/react";
 import React from "react";
 import { createContext } from "react";
 import { atom } from "jotai";
+import { useStallDetector } from "@/hooks/useStallDetector";
+import { getReplyIssue, type ReplyIssue } from "@/lib/ai/reply-status";
 
 export const assistantHistoryAtom = atom<{ id: string, messages: ChatUIMessage[] }>();
 
@@ -21,6 +23,13 @@ type ChatContextValue = ReturnType<typeof useChat<ChatUIMessage>> & {
     lastMessage: ChatUIMessage | undefined;
     pendingQuestion: AskUserToolPart | undefined;
     pendingProposal: ProposeGoalTreeToolPart | undefined;
+    // The user pressed stop during the last request.
+    stoppedByUser: boolean;
+    // No new chunk arrived for a while during the current request.
+    isStalled: boolean;
+    dismissStall: () => void;
+    // What went wrong with the last turn, if anything (see getReplyIssue).
+    replyIssue: ReplyIssue | null;
 
 }
 
@@ -54,6 +63,42 @@ export function ChatProvider({ models, children }: { models: GatewayModel[], chi
         : (models[0]?.id ?? "")
 
     const lastMessage = chat.messages.at(-1)
+
+    const [ stoppedByUser, setStoppedByUser ] = React.useState(false)
+
+    React.useEffect(() => {
+        if (chat.status === "submitted") setStoppedByUser(false)
+    }, [chat.status])
+
+    const { stop: stopChat } = chat
+    const stop = React.useCallback(async () => {
+        setStoppedByUser(true)
+        await stopChat()
+    }, [stopChat])
+
+    // Changes whenever anything new streams in (text, reasoning, tool states).
+    const stallSignature = isBusy
+        ? [
+            chat.status,
+            chat.messages.length,
+            ...(lastMessage?.parts ?? []).map((part) =>
+                [
+                    part.type,
+                    "text" in part ? part.text.length : "",
+                    "state" in part ? part.state : "",
+                ].join(":")
+            ),
+        ].join("|")
+        : ""
+
+    const { isStalled, dismiss: dismissStall } = useStallDetector(stallSignature, isBusy)
+
+    const replyIssue = getReplyIssue({
+        lastMessage,
+        isBusy,
+        hasError: chat.error != null,
+        stoppedByUser,
+    })
     const pendingQuestion =
         lastMessage?.role === "assistant"
         ? lastMessage.parts.find(
@@ -81,8 +126,8 @@ export function ChatProvider({ models, children }: { models: GatewayModel[], chi
 
     const value = React.useMemo(
 
-        () => ({ ...chat, model, setModel, resolvedModel, isBusy, lastMessage, pendingQuestion, pendingProposal, models }),
-        [ model, setModel, chat, resolvedModel, isBusy, lastMessage, pendingQuestion, pendingProposal, models ]
+        () => ({ ...chat, stop, model, setModel, resolvedModel, isBusy, lastMessage, pendingQuestion, pendingProposal, models, stoppedByUser, isStalled, dismissStall, replyIssue }),
+        [ model, setModel, chat, stop, resolvedModel, isBusy, lastMessage, pendingQuestion, pendingProposal, models, stoppedByUser, isStalled, dismissStall, replyIssue ]
 
     )
 

@@ -17,6 +17,7 @@ import { useReactFlow } from "@xyflow/react";
 import { GripVertical } from "lucide-react";
 import { isLoadingAtom } from "../miscellaneous/loading-overlay";
 import { useSetAtom } from "jotai/react";
+import NodeMaterialsPicker from "./node-materials-picker";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -28,6 +29,7 @@ interface Props {
     selectedNode: TaskNodeType;
     onPointerDown: (event: React.PointerEvent) => void;
     requiresSaveAction: () => void;
+    project_id: string;
 
 }
 
@@ -56,7 +58,7 @@ export const nodeDetailsFormSchema = z.object({
 
 })
 
-const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveAction }: Props ) => {
+const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveAction, project_id }: Props ) => {
 
     const form = useForm({
 
@@ -291,6 +293,12 @@ const NodeDataDisplayEditor = ( { selectedNode, onPointerDown, requiresSaveActio
                     </FieldGroup>
 
                 </form>
+                {/* the root goal can't hold materials */}
+                { !selectedNode.data.task.isRoot && (
+                    <div className="mt-6 border-t pt-3">
+                        <NodeMaterialsPicker project_id={project_id} node_id={selectedNode.id} />
+                    </div>
+                ) }
             </CardContent>
             <CardFooter className="flex gap-1.5 items-center">
                 <Button className="basis-0 grow bg-red-300 text-black hover:bg-red-400" type="button" disabled={!isEditing}　onClick={() => setIsEditing(false)}> 取消 </Button>

@@ -43,7 +43,7 @@ export type MaterialListOptionsPanelHandle = {
 
 }
 
-const MaterialListOptionsPanel = ({ ref, project_id }: { ref: RefObject<MaterialListOptionsPanelHandle | null>, project_id: string }) => {
+const MaterialListOptionsPanel = ({ ref, project_id, version = 0 }: { ref: RefObject<MaterialListOptionsPanelHandle | null>, project_id: string, version?: number }) => {
 
 
     const form = useForm<MaterialListOptionsValues>({
@@ -100,7 +100,7 @@ const MaterialListOptionsPanel = ({ ref, project_id }: { ref: RefObject<Material
         getMaterialsExistingFilterableColumnValues( project_id )
             .then( res => setExistingFilterableColumnValues( res ) )
 
-    }, [ project_id ])
+    }, [ project_id, version ])
 
     return (
         <PopoverSimplfied

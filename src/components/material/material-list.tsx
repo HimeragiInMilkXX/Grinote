@@ -20,6 +20,7 @@ const MaterialList = ( { className = '', materials, reloadList }: MaterialListPr
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-0"/>
                         <TableHead> タイプ </TableHead>
                         <TableHead> マテリアル名 </TableHead>
                         <TableHead> ラベル </TableHead>

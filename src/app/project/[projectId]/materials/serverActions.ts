@@ -2,7 +2,9 @@
 
 import { MaterialCreateFormOutput } from "@/components/material/create/material-create-panel";
 import { MaterialEditFormOutput } from "@/components/material/edit/material-edit-panel";
-import { Material, MaterialArrangableColumns, MaterialFilterableColumns, MaterialPagination } from "@/types/materials";
+import { Material, MaterialArrangableColumns, MaterialFilterableColumns, MaterialPagination, MaterialSummary } from "@/types/materials";
+import { MATERIAL_PIN_LIMIT } from "@/lib/materials/config";
+import type { PickerNode } from "@/lib/materials/node-order";
 import { createClient, requireUser } from "@/utils/supabase/server";
 
 export const getMaterial = async ( project_id: string, material_id: number ): Promise<Material> => {
@@ -17,7 +19,7 @@ export const getMaterial = async ( project_id: string, material_id: number ): Pr
 
 }
 
-export const getProjectMaterials = async ( project_id: string, query: string = "", page: number = 1, pageSize: number = 10, orderList: Partial<Record<MaterialArrangableColumns, boolean>> = { updated_at: false }, filterList: Partial<Record<MaterialFilterableColumns, string>> = {} ): Promise<MaterialPagination> => {
+export const getProjectMaterials = async ( project_id: string, query: string = "", page: number = 1, pageSize: number = 10, orderList: Partial<Record<MaterialArrangableColumns, boolean>> = { updated_at: false }, filterList: Partial<Record<MaterialFilterableColumns, string>> = {}, options: { favouriteOnly?: boolean } = {} ): Promise<MaterialPagination> => {
 
     const supabase = await createClient();
 
@@ -25,7 +27,10 @@ export const getProjectMaterials = async ( project_id: string, query: string = "
     const from = ( page - 1 ) * pageSize;
     const to = from + pageSize - 1
 
-    let request = supabase.from("materials").select("*", { count: "exact" }).range( from, to ).eq("project_id", project_id);
+    // Pinned materials are always listed separately (getPinnedMaterials), so they're excluded here
+    let request = supabase.from("materials").select("*", { count: "exact" }).range( from, to ).eq("project_id", project_id).is("pinned_at", null);
+
+    if( options.favouriteOnly ) request = request.eq("is_favourite", true);
 
 
     // Query
@@ -77,7 +82,7 @@ export const getMaterialsExistingFilterableColumnValues = async ( project_id: st
 
 }
 
-export const saveMaterial = async ( project_id: string, data: MaterialCreateFormOutput ): Promise<Material> => {
+export const saveMaterial = async ( project_id: string, data: MaterialCreateFormOutput, extra: { content?: string } = {} ): Promise<Material> => {
 
     const supabase = await createClient();
 
@@ -95,6 +100,7 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
         color: data.color ?? "#000000",
         description: data.description ?? "",
         link: data.link ?? "",
+        ...( extra.content !== undefined ? { content: extra.content } : {} ),
     };
 
     const { data: materialData, error: insertError } = await supabase.from("materials").insert( row ).select("*").single();
@@ -107,11 +113,17 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
         const filePath = `materials/${materialData.id}/${materialData.id}.${data.file.name.split(".").pop()}`;
         const { error: fileUploadError } = await supabase.storage.from("materials_media").upload( filePath, data.file );
 
-        if( fileUploadError ) throw fileUploadError.message;
+        if( fileUploadError ) {
+            // don't leave a row without its file behind
+            await supabase.from("materials").delete().eq("id", materialData.id);
+            throw fileUploadError.message;
+        }
 
         const { error: updateLinkError } = await supabase.from("materials").update( { link: filePath } ).eq("id", materialData.id );
 
         if( updateLinkError ) throw updateLinkError.message;
+
+        materialData.link = filePath;
 
     }
 
@@ -149,17 +161,17 @@ export const deleteMaterial = async ( material: Material ) => {
 }
 
 // for "contents"
-export const uploadEmbeddedImage = async ( file: File ): Promise<string> => {
+const memoImageFolder = ( material_id: number ) => `materials/${material_id}/memo`;
+
+export const uploadEmbeddedImage = async ( material_id: number, file: File ): Promise<string> => {
 
     const supabase = await createClient();
 
     await requireUser( supabase );
 
-    const material_id = 1;
-
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-    const filePath = `materials/${material_id}/${fileName}`;
+    const filePath = `${memoImageFolder( material_id )}/${fileName}`;
 
     const { data, error } = await supabase.storage.from("materials_media").upload(filePath, file);
 
@@ -171,12 +183,13 @@ export const uploadEmbeddedImage = async ( file: File ): Promise<string> => {
 
 }
 
+// Only touches the memo image folder, never the material's main file in materials/{id}/
 export const clearUnusedImages = async ( material_id: number, current_paths: string[] ) => {
 
     const supabase = await createClient();
 
-    const { data, error: fetchError } = await supabase.storage.from("materials_media").list(`materials/${material_id}`, {
-        limit: 100,
+    const { data, error: fetchError } = await supabase.storage.from("materials_media").list( memoImageFolder( material_id ), {
+        limit: 1000,
         sortBy: { column: 'created_at', order: 'desc' },
     })
 
@@ -187,7 +200,7 @@ export const clearUnusedImages = async ( material_id: number, current_paths: str
     // PublicUrl: the whole src link
     const oldPaths = data.map( item => {
 
-        const storagePath = `materials/${material_id}/${item.name}`
+        const storagePath = `${memoImageFolder( material_id )}/${item.name}`
         const { data: { publicUrl } } = supabase.storage.from("materials_media").getPublicUrl(storagePath);
 
         return { storagePath, publicUrl };
@@ -195,7 +208,8 @@ export const clearUnusedImages = async ( material_id: number, current_paths: str
     })
 
     // get paths of media that no longer exists in current version
-    const pendingRemoveImages = oldPaths.filter( img => !current_paths.includes( img.publicUrl ) );
+    // entries without an id are folders/placeholders
+    const pendingRemoveImages = oldPaths.filter( ( img, i ) => data[i].id && !current_paths.includes( img.publicUrl ) );
 
     if( pendingRemoveImages.length <= 0 ) return;
 
@@ -259,5 +273,259 @@ export const fetchPlayableMaterial = async ( material: Material ): Promise<{ url
     const { data: { publicUrl } } = supabase.storage.from("materials_media").getPublicUrl( material.link );
 
     return { url: publicUrl, ext: publicUrl.split(".").pop()! };
+
+}
+
+// ---------- Favourite / Pin ----------
+
+export const getPinnedMaterials = async ( project_id: string ): Promise<Material[]> => {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.from("materials").select("*").eq("project_id", project_id).not("pinned_at", "is", null).order("pinned_at", { ascending: true });
+
+    if( error ) throw error.message;
+
+    return ( data ?? [] ) as Material[];
+
+}
+
+export const setMaterialFavourite = async ( project_id: string, material_id: number, is_favourite: boolean ) => {
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    const { error } = await supabase.from("materials").update({ is_favourite }).eq("id", material_id).eq("project_id", project_id);
+
+    if( error ) throw error.message;
+
+}
+
+/** Returns { ok: false, message } when the pin limit is reached instead of throwing, so the UI can show it. */
+export const setMaterialPinned = async ( project_id: string, material_id: number, pinned: boolean ): Promise<{ ok: boolean, message?: string }> => {
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    if( pinned ) {
+
+        const { count, error: countError } = await supabase.from("materials").select("id", { count: "exact", head: true }).eq("project_id", project_id).not("pinned_at", "is", null).neq("id", material_id);
+
+        if( countError ) throw countError.message;
+
+        if( ( count ?? 0 ) >= MATERIAL_PIN_LIMIT ) return { ok: false, message: `ピン留めは最大${MATERIAL_PIN_LIMIT}件までです` };
+
+    }
+
+    const { error } = await supabase.from("materials").update({ pinned_at: pinned ? new Date().toISOString() : null }).eq("id", material_id).eq("project_id", project_id);
+
+    if( error ) throw error.message;
+
+    return { ok: true };
+
+}
+
+// ---------- Pickers ----------
+
+export const listMaterialsForPicker = async ( project_id: string ): Promise<MaterialSummary[]> => {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.from("materials").select("id, name, type, label, color, is_favourite, pinned_at").eq("project_id", project_id).order("updated_at", { ascending: false });
+
+    if( error ) throw error.message;
+
+    return ( data ?? [] ) as MaterialSummary[];
+
+}
+
+export const listProjectNodes = async ( project_id: string ): Promise<PickerNode[]> => {
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    const { data, error } = await supabase.from("nodes").select(`id, task_name, parent_node_id, isRoot, isCompleted`).eq("project_id", project_id);
+
+    if( error ) throw error.message;
+
+    return ( data ?? [] ).map( n => ( { ...n, isRoot: !!n.isRoot, isCompleted: !!n.isCompleted } ) ) as PickerNode[];
+
+}
+
+// ---------- Material <-> Node links ----------
+
+export const getMaterialLinks = async ( project_id: string, material_id: number ): Promise<{ id: string, task_name: string }[]> => {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.from("material_nodes").select("node_id, nodes(id, task_name)").eq("project_id", project_id).eq("material_id", material_id);
+
+    if( error ) throw error.message;
+
+    return ( data ?? [] ).flatMap( row => {
+        const node = row.nodes as unknown as { id: string, task_name: string } | null;
+        return node ? [ node ] : [];
+    } );
+
+}
+
+export const getNodeLinks = async ( project_id: string, node_id: string ): Promise<MaterialSummary[]> => {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.from("material_nodes").select("material_id, materials(id, name, type, label, color, is_favourite, pinned_at)").eq("project_id", project_id).eq("node_id", node_id);
+
+    if( error ) throw error.message;
+
+    const materials = ( data ?? [] ).flatMap( row => {
+        const m = row.materials as unknown as MaterialSummary | null;
+        return m ? [ m ] : [];
+    } );
+
+    // pinned first, then favourites, then name
+    return materials.sort( ( a, b ) =>
+        Number( !!b.pinned_at ) - Number( !!a.pinned_at ) ||
+        Number( b.is_favourite ) - Number( a.is_favourite ) ||
+        a.name.localeCompare( b.name ) );
+
+}
+
+/** Whether the node row exists in this project (unsaved canvas nodes can't be linked yet). */
+export const nodeExists = async ( project_id: string, node_id: string ) => {
+
+    const supabase = await createClient();
+
+    const { count, error } = await supabase.from("nodes").select("id", { count: "exact", head: true }).eq("project_id", project_id).eq("id", node_id);
+
+    if( error ) throw error.message;
+
+    return ( count ?? 0 ) > 0;
+
+}
+
+/** Ids of saved nodes that can hold materials: every node except the root goal. */
+const linkableNodeIds = async ( project_id: string ) =>
+    new Set( ( await listProjectNodes( project_id ) ).filter( n => !n.isRoot ).map( n => n.id ) );
+
+const ROOT_LINK_ERROR = "ルート（最終目標）ノードにはマテリアルをリンクできません";
+
+/** Replace all node links of a material. */
+export const setMaterialNodeLinks = async ( project_id: string, material_id: number, node_ids: string[] ) => {
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    const { data: current, error: fetchError } = await supabase.from("material_nodes").select("node_id").eq("project_id", project_id).eq("material_id", material_id);
+
+    if( fetchError ) throw fetchError.message;
+
+    const linkable = await linkableNodeIds( project_id );
+
+    if( node_ids.some( id => !linkable.has( id ) ) ) throw new Error( ROOT_LINK_ERROR );
+
+    const wanted = new Set( node_ids );
+    const existing = new Set( ( current ?? [] ).map( r => r.node_id as string ) );
+
+    await addLinks( supabase, project_id, [ ...wanted ].filter( id => !existing.has( id ) ).map( node_id => ( { material_id, node_id } ) ) );
+    await removeLinks( supabase, project_id, [ ...existing ].filter( id => !wanted.has( id ) ).map( node_id => ( { material_id, node_id } ) ) );
+
+}
+
+/** Replace all material links of a node. */
+export const setNodeMaterialLinks = async ( project_id: string, node_id: string, material_ids: number[] ) => {
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    if( !( await nodeExists( project_id, node_id ) ) ) throw new Error( "ツリーを保存してからリンクしてください" );
+
+    if( !( await linkableNodeIds( project_id ) ).has( node_id ) ) throw new Error( ROOT_LINK_ERROR );
+
+    const { data: current, error: fetchError } = await supabase.from("material_nodes").select("material_id").eq("project_id", project_id).eq("node_id", node_id);
+
+    if( fetchError ) throw fetchError.message;
+
+    const wanted = new Set( material_ids );
+    const existing = new Set( ( current ?? [] ).map( r => Number( r.material_id ) ) );
+
+    await addLinks( supabase, project_id, [ ...wanted ].filter( id => !existing.has( id ) ).map( material_id => ( { material_id, node_id } ) ) );
+    await removeLinks( supabase, project_id, [ ...existing ].filter( id => !wanted.has( id ) ).map( material_id => ( { material_id, node_id } ) ) );
+
+}
+
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
+type LinkPair = { material_id: number, node_id: string };
+
+const addLinks = async ( supabase: SupabaseServer, project_id: string, pairs: LinkPair[] ) => {
+
+    if( pairs.length === 0 ) return;
+
+    const { error } = await supabase.from("material_nodes").upsert( pairs.map( p => ( { ...p, project_id } ) ), { onConflict: "material_id,node_id", ignoreDuplicates: true } );
+
+    if( error ) throw error.message;
+
+}
+
+const removeLinks = async ( supabase: SupabaseServer, project_id: string, pairs: LinkPair[] ) => {
+
+    for( const p of pairs ) {
+
+        const { error } = await supabase.from("material_nodes").delete().eq("project_id", project_id).eq("material_id", p.material_id).eq("node_id", p.node_id);
+
+        if( error ) throw error.message;
+
+    }
+
+}
+
+// ---------- AI proposal ----------
+
+export type AcceptedMaterialProposal = {
+    create_external: { name: string, url: string, description?: string, label?: string, node_ids: string[] }[],
+    link: LinkPair[],
+    unlink: LinkPair[],
+}
+
+/** Writes an accepted AI material proposal. Returns ids of created materials. */
+export const applyMaterialProposal = async ( project_id: string, accepted: AcceptedMaterialProposal ): Promise<{ created: number[] }> => {
+
+    const supabase = await createClient();
+
+    await requireUser( supabase );
+
+    const validNodes = await linkableNodeIds( project_id );
+    const created: number[] = [];
+
+    for( const item of accepted.create_external ) {
+
+        if( !/^https?:\/\//i.test( item.url ) ) continue;
+
+        const { data, error } = await supabase.from("materials").insert({
+            project_id,
+            type: "externals",
+            name: item.name.slice( 0, 200 ),
+            description: item.description ?? "",
+            label: item.label ?? "",
+            color: "#000000",
+            link: item.url,
+        }).select("id").single();
+
+        if( error ) throw error.message;
+
+        created.push( data.id );
+
+        await addLinks( supabase, project_id, item.node_ids.filter( id => validNodes.has( id ) ).map( node_id => ( { material_id: data.id, node_id } ) ) );
+
+    }
+
+    await addLinks( supabase, project_id, accepted.link.filter( p => validNodes.has( p.node_id ) ) );
+    await removeLinks( supabase, project_id, accepted.unlink );
+
+    return { created };
 
 }

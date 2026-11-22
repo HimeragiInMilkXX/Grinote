@@ -46,7 +46,7 @@ const MaterialCommonFields = ( { idPrefix }: { idPrefix: string } ) => {
                 control={control}
                 render={ ( { field, fieldState } ) => (
                     <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor={`${idPrefix}-name`}> タスクネーム </FieldLabel>
+                        <FieldLabel htmlFor={`${idPrefix}-name`}> マテリアル名 </FieldLabel>
                         <Input { ...field } id={`${idPrefix}-name`} aria-invalid={fieldState.invalid} placeholder="マテリアル名" autoComplete="off" />
                         { fieldState.invalid && <FieldError errors={[fieldState.error]} /> }
                     </Field>

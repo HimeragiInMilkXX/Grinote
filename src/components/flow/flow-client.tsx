@@ -817,7 +817,7 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
 
                         <DraggablePanel>
                             { onPointerDown => isEditMode
-                                ? <NodeDataDisplayEditor selectedNode={selectedNode} onPointerDown={onPointerDown} requiresSaveAction={() => setRequiresSaveAction(true)}/>
+                                ? <NodeDataDisplayEditor project_id={project_id} selectedNode={selectedNode} onPointerDown={onPointerDown} requiresSaveAction={() => setRequiresSaveAction(true)}/>
                                 : <NodeDataConfirmPanel project_id={project_id} selectedNode={selectedNode} onPointerDown={onPointerDown}/> }
                         </DraggablePanel>
 

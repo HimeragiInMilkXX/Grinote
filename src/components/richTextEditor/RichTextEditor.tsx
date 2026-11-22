@@ -1,6 +1,6 @@
 'use client'
 
-import { RefObject, useEffect, useImperativeHandle } from 'react'
+import { RefObject, useEffect, useImperativeHandle, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TextAlign from '@tiptap/extension-text-align'
@@ -17,15 +17,30 @@ import { EditorMetadata } from './EditorMetadata'
 export type EditorRef = {
     getHTML: () => string
     getAllImageUrls: () => string[]
+    /** Replace the whole document (e.g. an AI draft). Not saved until the owner saves. */
+    setHTML: ( html: string ) => void
+    /** Append HTML at the end of the document. */
+    appendHTML: ( html: string ) => void
+    isReady: () => boolean
 }
 
 export interface RichTextEditorProps {
     classes?: string
     ref?: RefObject<EditorRef | null>;
     content?: string;
+    /** Material that owns embedded images (uploads go to materials/{id}/memo) */
+    material_id: number;
+    /** Height of the editing surface, default h-[80vh] */
+    heightClass?: string;
+    /** Called whenever the user (or an inserted AI draft) changes the document; not called when `content` is loaded */
+    onChange?: () => void;
 }
 
-const RichTextEditor = ({ ref, classes = "", content }: RichTextEditorProps) => {
+const RichTextEditor = ({ ref, classes = "", content, material_id, heightClass = "h-[80vh]", onChange }: RichTextEditorProps) => {
+
+    // latest callback without re-creating the editor
+    const onChangeRef = useRef( onChange )
+    useEffect( () => { onChangeRef.current = onChange }, [ onChange ] )
 
     // useEditor handles creation and lifecycle automatically in React
     const editor = useEditor({
@@ -46,17 +61,19 @@ const RichTextEditor = ({ ref, classes = "", content }: RichTextEditorProps) => 
         ],
         editorProps: {
             attributes: {
-                class: "bg-white box-border p-4 w-full h-[80vh] overflow-y-scroll outline-none", 
+                class: "bg-white box-border p-4 w-full min-h-full outline-none", 
                 style: "scrollbar-width: none"
             }
         },
         immediatelyRender: false, // Required for Next.js SSR hydration safety
-        content: content ?? ""
+        content: content ?? "",
+        onUpdate: () => onChangeRef.current?.()
     })
 
     useEffect( () => {
 
-        editor?.commands.setContent(content ?? "")
+        // loading saved content isn't a user change
+        editor?.commands.setContent(content ?? "", { emitUpdate: false })
 
     }, [editor, content])
 
@@ -77,19 +94,22 @@ const RichTextEditor = ({ ref, classes = "", content }: RichTextEditorProps) => 
 
             return imageUrls
 
-        }
+        },
+        setHTML: ( html: string ) => { editor?.commands.setContent( html, { emitUpdate: true } ) },
+        appendHTML: ( html: string ) => { editor?.chain().focus( "end" ).insertContent( html ).run() },
+        isReady: () => !!editor && !editor.isDestroyed,
     }), [editor])
 
     return (
         <div className={`border-2 ${classes}`}>
             {/* Toolbar Container */}
             <div className="flex flex-wrap items-center gap-1 bg-slate-50 border-b">
-                {editor && <ToolbarContents editor={editor} />}
+                {editor && <ToolbarContents editor={editor} material_id={material_id} />}
             </div>
 
             {/* Main Editor Surface using Tiptap's built-in EditorContent component */}
-            <div className="h-[80vh] bg-white overflow-y-scroll rounded-lg editor p-4.5">
-                <EditorContent editor={editor} />
+            <div className={`${heightClass} bg-white overflow-y-scroll rounded-lg editor p-4.5`}>
+                <EditorContent editor={editor} className="h-full" />
             </div>
         </div>
     )

@@ -10,6 +10,10 @@ export type Material = {
     description: string;
     content: string;
 
+    is_favourite: boolean;
+    /** ISO timestamp when pinned, null when not pinned */
+    pinned_at: string | null;
+
     created_at: string;
     updated_at: string;
 
@@ -48,3 +52,8 @@ export const materialTypeCaptions: Record<MaterialType, MaterialTypeCaptions> = 
     memos: "メモ",
 
 }
+
+/** Lightweight material row for pickers / link lists */
+export type MaterialSummary = Pick<Material, "id" | "name" | "type" | "label" | "color" | "is_favourite" | "pinned_at">
+
+export type MaterialNodeLink = { material_id: number, node_id: string, project_id: string }

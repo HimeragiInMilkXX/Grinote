@@ -5,7 +5,7 @@ import { Button } from '../ui/button'
 import { X } from 'lucide-react'
 import { cn } from 'cn'
 
-const MaterialTabTrigger = ( { closeTab = () => {}, value, label, className = "" }: { closeTab?: ( id: number ) => void, value: string, label: string | React.ReactNode, className?: string }) => {
+const MaterialTabTrigger = ( { closeTab = () => {}, value, label, className = "", unsaved = false }: { closeTab?: ( id: number ) => void, value: string, label: string | React.ReactNode, className?: string, unsaved?: boolean }) => {
 
     const closeTabTrigger = ( e: React.MouseEvent ) => {
 
@@ -19,6 +19,7 @@ const MaterialTabTrigger = ( { closeTab = () => {}, value, label, className = ""
         <TabsTrigger value={value} className="flex-none h-fit! " render={
             <Button variant="secondary" className={ cn( className, "py-1.5! w-20 min-w-20 max-w-20 overflow-hidden hover:[&>.closeOverlay]:opacity-100 hover:[&>.closeOverlay]:pointer-events-auto relative bg-gray-100 hover:bg-gray-200 data-active:bg-gray-300!" ) }>
                 <p className='text-ellipsis overflow-hidden leading-snug'>{label}</p>
+                { unsaved && <span title='保存されていないメモの変更があります' className='absolute top-1 right-1 w-2 aspect-square rounded-full bg-red-600'/> }
                 { value !== "list" && <div className='transition-all closeOverlay opacity-0 pointer-events-none flex left-0 h-full top-0 justify-end pr-1 box-border items-center w-full absolute bg-linear-to-r from-transparent to-gray-300 rounded-md'>
                     <X size={16} onClick={closeTabTrigger} className='cursor-pointer pointer-events-auto!'/>
                 </div> }

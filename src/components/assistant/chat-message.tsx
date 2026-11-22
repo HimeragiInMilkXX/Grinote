@@ -18,11 +18,14 @@ import { Trace } from "@/components/ui/trace"
 import { ProposeGoalTreePart } from "./parts/propose-goal-tree-part"
 import { GetProjectInfoPart } from "./parts/get-project-info-part"
 import { GetGraphInfoPart } from "./parts/get-graph-info-part"
+import { MaterialReadPart } from "./parts/material-read-part"
+import { ProposeMaterialsPart } from "./parts/propose-materials-part"
+import { DraftMemoPart } from "./parts/draft-memo-part"
 
 type StepPart = Extract<
   ChatMessagePart,
   {
-    type: "reasoning" | "tool-github_repo" | "tool-ask_user" | "tool-web_search" | "tool-propose_goal_tree" | "tool-get_project_info" | "tool-get_graph_info"
+    type: "reasoning" | "tool-github_repo" | "tool-ask_user" | "tool-web_search" | "tool-propose_goal_tree" | "tool-get_project_info" | "tool-get_graph_info" | "tool-list_materials" | "tool-read_material" | "tool-propose_materials" | "tool-draft_memo"
   }
 >
 
@@ -123,6 +126,31 @@ export function ChatMessage({
                         isStreaming={isStreaming}
                       />
                     )
+                  case "tool-list_materials":
+                  case "tool-read_material":
+                    return (
+                      <MaterialReadPart
+                        key={part.toolCallId}
+                        part={part}
+                        isStreaming={isStreaming}
+                      />
+                    )
+                  case "tool-propose_materials":
+                    return (
+                      <ProposeMaterialsPart
+                        key={part.toolCallId}
+                        part={part}
+                        isStreaming={isStreaming}
+                      />
+                    )
+                  case "tool-draft_memo":
+                    return (
+                      <DraftMemoPart
+                        key={part.toolCallId}
+                        part={part}
+                        isStreaming={isStreaming}
+                      />
+                    )
                 }
               })}
             </Trace>
@@ -178,7 +206,11 @@ function isStepPart(part: ChatMessagePart): part is StepPart {
     part.type === "tool-web_search" ||
     part.type === "tool-propose_goal_tree" ||
     part.type === "tool-get_project_info" ||
-    part.type === "tool-get_graph_info"
+    part.type === "tool-get_graph_info" ||
+    part.type === "tool-list_materials" ||
+    part.type === "tool-read_material" ||
+    part.type === "tool-propose_materials" ||
+    part.type === "tool-draft_memo"
   )
 }
 

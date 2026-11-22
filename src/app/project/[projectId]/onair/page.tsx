@@ -5,6 +5,9 @@ import OnAirTimer from "@/components/project/onair/onair-timer";
 import OnAirCharacter from "@/components/project/character/onair-character";
 import { getProject } from "@/lib/projects";
 import { errorMessage } from "@/utils/utils";
+import { getNodeLinks } from "../materials/serverActions";
+import OnAirLinkedMaterials from "@/components/project/onair/onair-linked-materials";
+import { MaterialSummary } from "@/types/materials";
 
 const ProjectPageOnAir = async ( { searchParams, params }: PageProps<"/project/[projectId]/onair"> ) => {
 
@@ -48,15 +51,21 @@ const ProjectPageOnAir = async ( { searchParams, params }: PageProps<"/project/[
 
     }
 
+    // node_id is reliable; the joined node key differs between getActiveTask (node) and startTask (nodes)
+    const linkedMaterials: MaterialSummary[] = activeTask ? await getNodeLinks( projectId, activeTask.node_id ).catch( () => [] ) : [];
+
     return (
         <>
             {
 
                 activeTask && (
 
-                    <div className="flex gap-3">
-                        <OnAirCharacter project={project}/>
-                        <OnAirTimer activeTask={activeTask}/>
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="flex gap-3">
+                            <OnAirCharacter project={project}/>
+                            <OnAirTimer activeTask={activeTask}/>
+                        </div>
+                        <OnAirLinkedMaterials project_id={projectId} node_id={activeTask.node_id} initialMaterials={linkedMaterials}/>
                     </div>
 
                 )

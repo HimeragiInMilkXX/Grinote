@@ -13,13 +13,13 @@ import Inline from "yet-another-react-lightbox/plugins/inline";
 import { buttonVariants } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
-const ImageView = ( { src, alt = 'image', className = "" }: { src: string, alt?: string, className?: string } ) => {
+const ImageView = ( { src, alt = 'image', className = "", title }: { src: string, alt?: string, className?: string, title?: React.ReactNode } ) => {
 
     return (
 
         <>
-            <div className="w-full flex justify-between px-3 items-center sticky top-0 z-2 bg-white py-6 border-b">
-                <h3 className="text-2xl"> マテリアル名 </h3>
+            <div className="w-full flex justify-between px-3 items-center sticky top-0 z-2 bg-white py-6 border-b gap-3">
+                { title ?? <h3 className="text-2xl"> マテリアル名 </h3> }
                 <a className={cn( buttonVariants({variant: "ghost"}), "bg-green-300! py-3 px-4.5" )} href={src} target="_blank" download> ダウンロード <Download/> </a>
             </div>
             <div className={cn( className, "flex flex-col gap-3 w-full h-full" )}>

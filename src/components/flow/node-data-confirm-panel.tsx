@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 import { GripVertical } from "lucide-react";
 import { isLoadingAtom } from "../miscellaneous/loading-overlay";
 import { useSetAtom } from "jotai/react";
+import NodeMaterialsPicker from "./node-materials-picker";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -106,6 +107,12 @@ const NodeDataConfirmPanel = ( { selectedNode, onPointerDown, project_id }: Prop
                         }
 
                     </FieldGroup>
+
+                    { !data.isRoot && (
+                        <div className="mt-6 border-t pt-3">
+                            <NodeMaterialsPicker project_id={project_id} node_id={selectedNode.id} editable={false} />
+                        </div>
+                    ) }
 
             </CardContent>
             <CardFooter className="flex gap-1.5 items-center">
