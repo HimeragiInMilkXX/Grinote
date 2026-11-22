@@ -4,26 +4,20 @@ import { OnAirRecord } from "@/types/records";
 import OnAirTimer from "@/components/project/onair/onair-timer";
 import OnAirCharacter from "@/components/project/character/onair-character";
 import { getProject } from "@/lib/projects";
+import { errorMessage } from "@/utils/utils";
 
-type Props = {
-
-    searchParams: Promise<{ [ key: string ]: string | undefined }>;
-    params: any
-
-}
-
-const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
+const ProjectPageOnAir = async ( { searchParams, params }: PageProps<"/project/[projectId]/onair"> ) => {
 
     const query = await searchParams;
 
-    const nodeId = query.nodeId;
+    const nodeId = typeof query.nodeId === "string" ? query.nodeId : undefined;
 
     const { projectId } = await params;
 
     let activeTask: OnAirRecord | null = await getActiveTask( projectId );
     const project: Project = await getProject( projectId );
 
-    const tryStartTask = async () => {
+    const tryStartTask = async ( nodeId: string ) => {
 
         if( activeTask ) {
 
@@ -33,11 +27,11 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
 
             try {
 
-                activeTask = await startTask( nodeId!, projectId );
+                activeTask = await startTask( nodeId, projectId );
 
-            } catch( e: any ) {
+            } catch( e ) {
 
-                console.log( e.message );
+                console.error( errorMessage( e ) );
                 redirect(`/project/${projectId}/tree?isInitialEditMode=false`)
 
             }
@@ -46,7 +40,7 @@ const ProjectPageOnAir = async ( { searchParams, params }: Props ) => {
 
     }
 
-    if( nodeId ) await tryStartTask();
+    if( nodeId ) await tryStartTask( nodeId );
 
     if( !activeTask ) {
 

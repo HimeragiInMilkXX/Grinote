@@ -1,16 +1,16 @@
 "use server"
 
 import { OnAirRecord } from "@/types/records";
-import { createClient } from "@/utils/supabase/server"
+import { createClient, requireUser } from "@/utils/supabase/server"
 import { updateResource, updateXp } from "../character/serverActions";
 
 export const getRecord = async ( record_id: number, project_id: string ): Promise<OnAirRecord> => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await requireUser( supabase );
 
-    const { data: record, error } = await supabase.from("records").select( "*, nodes ( * ), projects ( *, characters ( * ) )" ).eq( "id", record_id ).eq( "project_id", project_id ).eq( "user_id", user?.id ).single();
+    const { data: record, error } = await supabase.from("records").select( "*, nodes ( * ), projects ( *, characters ( * ) )" ).eq( "id", record_id ).eq( "project_id", project_id ).eq( "user_id", user.id ).single();
 
     if( error ) throw error.message;
 
@@ -24,7 +24,7 @@ export const redeemReward = async ( record_id: number, project_id: string, curre
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await requireUser( supabase );
 
     const { data: record, error: updateBoolError } = await
         supabase
@@ -32,7 +32,7 @@ export const redeemReward = async ( record_id: number, project_id: string, curre
         .update( { reward_redeemed: true } )
         .eq( "id", record_id )
         .eq( "project_id", project_id )
-        .eq( "user_id", user?.id )
+        .eq( "user_id", user.id )
         .eq( "status", "completed" )
         .eq( "reward_redeemed", false )
         .select( "xp_change, resource_gained" ).single();

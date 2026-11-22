@@ -9,7 +9,7 @@ interface NodeContextMenuProps {
     y: number;
     startViewing: () => void;
     deleteNode: () => void;
-    duplicateNode: (e: any) => void;
+    duplicateNode: (e: React.MouseEvent) => void;
 
 }
 

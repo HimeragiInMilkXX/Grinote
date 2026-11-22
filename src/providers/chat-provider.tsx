@@ -19,8 +19,8 @@ type ChatContextValue = ReturnType<typeof useChat<ChatUIMessage>> & {
     resolvedModel: string;
     isBusy: boolean;
     lastMessage: ChatUIMessage | undefined;
-    pendingQuestion: AskUserToolPart;
-    pendingProposal: ProposeGoalTreeToolPart;
+    pendingQuestion: AskUserToolPart | undefined;
+    pendingProposal: ProposeGoalTreeToolPart | undefined;
 
 }
 

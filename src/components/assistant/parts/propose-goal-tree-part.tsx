@@ -2,7 +2,6 @@
 
 import { type ProposeGoalTreeToolPart } from "@/tools"
 import { StatusIcon } from "@/components/assistant/status-icon"
-import { CodeBlock, CodeBlockContent } from "@/components/ui/code-block"
 import {
   TraceCollapsible,
   TraceCollapsibleContent,

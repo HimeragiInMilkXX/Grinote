@@ -3,7 +3,7 @@
 import { TableTaskRow, Task } from "@/types/flow";
 import { OnAirRecord } from "@/types/records";
 import { createActionClient } from "@/utils/supabase/actions";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, requireUser } from "@/utils/supabase/server";
 import { intervalToDurationObject } from "@/utils/utils";
 import { redirect } from "next/navigation";
 
@@ -57,9 +57,7 @@ export const startTask = async ( node_id: string, project_id: string ): Promise<
 
     const supabase = await createActionClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if( !user ) throw new Error("Not logged in");
+    const user = await requireUser( supabase );
 
     const requestedTask = await getTaskFromNode( node_id, project_id );
 

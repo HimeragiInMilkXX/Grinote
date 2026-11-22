@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Pause, Play, Volume1, Volume2, VolumeOff, ZoomIn } from "lucide-react";
 import { cn } from "cn";
 
-const AudioView = ( { src, className = "" }: { src: string, className?: string } ) => {
+// Base UI sliders report `number | readonly number[]`; we only use single-thumb sliders
+const firstValue = ( value: number | readonly number[] ) => typeof value === "number" ? value : value[0]
+
+const AudioView = ( { src, title = "マテリアル名", className = "" }: { src: string, title?: string, className?: string } ) => {
 
 
     const [ wavesurfer, setWavesurfer ] = useState<WaveSurfer | null>(null);
@@ -26,7 +29,7 @@ const AudioView = ( { src, className = "" }: { src: string, className?: string }
 
     const onPlayPause = () => {
 
-        wavesurfer && wavesurfer.playPause();
+        wavesurfer?.playPause();
 
     }
 
@@ -45,7 +48,7 @@ const AudioView = ( { src, className = "" }: { src: string, className?: string }
 
         wavesurfer?.zoom(minPxPerSec)
 
-    }, [ minPxPerSec ])
+    }, [ minPxPerSec, wavesurfer ])
 
     // Volume
     const [ volume, setVolume ] = useState(0.5);
@@ -60,7 +63,7 @@ const AudioView = ( { src, className = "" }: { src: string, className?: string }
 
         <>
             <div className="w-full flex justify-between px-3 items-center sticky top-0 z-2 bg-white py-6 border-b">
-                <h3 className="text-2xl"> マテリアル名 </h3>
+                <h3 className="text-2xl"> { title } </h3>
                 {/* Play */}
                 <Button variant="ghost" className={`${ isPlaying ? "bg-red-300 hover:bg-red-400" : "bg-green-300 hover:bg-green-400"} py-3 px-4.5`} onClick={onPlayPause}> { isPlaying ? <div className="flex items-center gap-1.5 leading-tight">Pause <Pause/></div> : <div className="flex items-center gap-1.5 leading-tight">Play <Play/></div> } </Button>
             </div>
@@ -84,12 +87,12 @@ const AudioView = ( { src, className = "" }: { src: string, className?: string }
                                     volume > 0 ? <Volume1 size={16}/> :
                                     <VolumeOff size={16}/>
                                 }
-                                <Slider value={[volume]} max={1} onValueChange={(value: number) => setVolume(value)} step={0.01} className="grow"/>
+                                <Slider value={[volume]} max={1} onValueChange={(value) => setVolume(firstValue(value))} step={0.01} className="grow"/>
                         </div>
                         {/* Zoom */}
                         <div className="flex items-center grow-[0.2] gap-1.5">
                             <ZoomIn size={16}/>
-                            <Slider value={[minPxPerSec]} max={400} onValueChange={(value: number) => setMinPxPerSec(value)} step={1} className="grow"/>
+                            <Slider value={[minPxPerSec]} max={400} onValueChange={(value) => setMinPxPerSec(firstValue(value))} step={1} className="grow"/>
                         </div>
                     </div>
                 </div>

@@ -3,9 +3,6 @@
 import { RefObject, useEffect, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import Link from '@tiptap/extension-link'
-import CodeBlock from '@tiptap/extension-code-block'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
@@ -33,16 +30,17 @@ const RichTextEditor = ({ ref, classes = "", content }: RichTextEditorProps) => 
     // useEditor handles creation and lifecycle automatically in React
     const editor = useEditor({
         extensions: [
-            StarterKit,
-            Underline,
-            Link.configure({ openOnClick: false }),
+            // StarterKit v3 already bundles Underline, Link and CodeBlock
+            StarterKit.configure({
+                link: { openOnClick: false },
+                codeBlock: { exitOnArrowDown: true },
+            }),
             CleanImageResize.configure({ inline: true, allowBase64: true }),
-            CodeBlock.configure({ exitOnArrowDown: true }),
             TextAlign.configure({ types: ['heading', 'paragraph'] }),
             TextStyleKit,
             Color,
             TableKit,
-            Superscript.configure({}),
+            Superscript,
             Subscript,
             EditorMetadata
         ],
@@ -60,7 +58,7 @@ const RichTextEditor = ({ ref, classes = "", content }: RichTextEditorProps) => 
 
         editor?.commands.setContent(content ?? "")
 
-    }, [content])
+    }, [editor, content])
 
     // Expose getHTML via React's useImperativeHandle (replaces Solid's ref callback parameter)
     useImperativeHandle(ref, () => ({

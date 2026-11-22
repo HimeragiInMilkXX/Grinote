@@ -1,10 +1,8 @@
 "use client"
 
 import { MaterialArrangableColumns, materialColumnsCaption } from "@/types/materials"
-import { useEffect } from "react"
 import { Control, Controller } from "react-hook-form"
-import z from "zod/v4"
-import { materialListOptionsFormSchema } from "./material-list-options-panel"
+import { MaterialListOptionsValues } from "./material-list-options-panel"
 import { Field, FieldError, FieldGroup } from "@/components/ui/field"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -22,7 +20,7 @@ const arrangeValuesItems: { label: MaterialArrangableColumns, value: { column: M
 
 ]
 
-const MaterialListArrangePanel = ( { control }: { control: Control<z.infer<typeof materialListOptionsFormSchema>> }) => {
+const MaterialListArrangePanel = ( { control }: { control: Control<MaterialListOptionsValues> }) => {
 
     return (
             <FieldGroup className="flex flex-col gap-1.5">

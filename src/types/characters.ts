@@ -3,10 +3,13 @@ type Character = {
     id: number;
     name: string;
     group: string;
-    description: number;
+    description: string;
     growth_step: Record<number, number>
 
 }
+
+/** Columns selected when listing characters to pick from. */
+type CharacterSummary = Pick<Character, "id" | "name" | "group" | "description">
 
 type CharacterLevelChanges = {
 

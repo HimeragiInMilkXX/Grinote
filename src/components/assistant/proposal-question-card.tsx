@@ -1,6 +1,6 @@
 "use client"
 
-import { ProposeGoalTreeToolPart, type AskUserToolPart } from "@/tools"
+import { type ProposeGoalTreeToolPart } from "@/tools"
 import {
   Questionnaire,
   QuestionnaireActions,
@@ -10,9 +10,6 @@ import {
   QuestionnaireError,
   QuestionnaireInput,
   QuestionnaireItem,
-  QuestionnaireNext,
-  QuestionnairePrevious,
-  QuestionnaireProgress,
   QuestionnaireSubmit,
   QuestionnaireTitle,
 } from "@/components/ui/questionnaire"

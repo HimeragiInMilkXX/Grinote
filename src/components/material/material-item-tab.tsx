@@ -1,7 +1,6 @@
 "use client"
 
 import { fetchPlayableMaterial, fetchReadonlyMaterial, getMaterial } from "@/app/project/[projectId]/materials/serverActions";
-import { Material } from "@/types/materials"
 import { useEffect, useState } from "react"
 import MemoView from "./memo/memo-view";
 import ExternalView from "./external/external-view";
@@ -15,14 +14,11 @@ import { cn } from "cn";
 
 const MaterialItemTab = ( { className = '', project_id, material_id }: { className?: string, project_id: string, material_id: number } ) => {
 
-    const [ material, setMaterial ] = useState<Material | null>(null);
     const [ renderView, setRenderView ] = useState<React.ReactNode>();
 
     useEffect( () => {
 
         getMaterial( project_id, material_id ).then( res => {
-
-            setMaterial( res );
 
             switch( res.type ) {
 
@@ -36,14 +32,14 @@ const MaterialItemTab = ( { className = '', project_id, material_id }: { classNa
 
                 case "playables":
                     fetchPlayableMaterial( res ).then( ( { url, ext } ) =>
-                        setRenderView( supported_audio_format.includes(ext ?? "") ? <AudioView src={url}/> : <VideoView src={url}/> ) );
+                        setRenderView( supported_audio_format.includes(ext ?? "") ? <AudioView src={url} title={res.name}/> : <VideoView src={url}/> ) );
                     break;
 
             }
 
         } )
 
-    }, [material_id])
+    }, [ project_id, material_id ])
 
     return (
         <TabsContent value={String(material_id)} className={cn(className, "px-6 pb-6 rounded-xl shadow border flex flex-col gap-3 relative w-full max-w-full overflow-scroll scrollbar-none")}>{renderView}</TabsContent>

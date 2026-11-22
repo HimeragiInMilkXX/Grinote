@@ -1,17 +1,15 @@
 "use server"
 
 import { MaterialCreateFormOutput } from "@/components/material/create/material-create-panel";
-import { MaterialEditFormInput, MaterialEditFormOutput } from "@/components/material/edit/material-edit-panel";
+import { MaterialEditFormOutput } from "@/components/material/edit/material-edit-panel";
 import { Material, MaterialArrangableColumns, MaterialFilterableColumns, MaterialPagination } from "@/types/materials";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, requireUser } from "@/utils/supabase/server";
 
 export const getMaterial = async ( project_id: string, material_id: number ): Promise<Material> => {
 
     const supabase = await createClient();
 
     const { data, error } = await supabase.from("materials").select("*").eq("project_id", project_id).eq("id", material_id).single();
-
-    console.log( data )
 
     if( error ) throw error.message;
 
@@ -83,9 +81,7 @@ export const saveMaterial = async ( project_id: string, data: MaterialCreateForm
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if( !user ) throw new Error("not logged in")
+    await requireUser( supabase );
 
     // Link and File can't exist at the same time
     if( data?.link && data?.file ) throw new Error("Link and file shouldn't exist at the same time");
@@ -157,9 +153,7 @@ export const uploadEmbeddedImage = async ( file: File ): Promise<string> => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if( !user ) throw new Error("not logged in")
+    await requireUser( supabase );
 
     const material_id = 1;
 
@@ -208,7 +202,7 @@ export const clearUnusedImages = async ( material_id: number, current_paths: str
     const pendingRemovePaths = pendingRemoveImages.map( img => img.storagePath );
 
     // remove unused media
-    const { data: test, error: removeError } = await supabase.storage.from("materials_media").remove(pendingRemovePaths);
+    const { error: removeError } = await supabase.storage.from("materials_media").remove(pendingRemovePaths);
 
     if( removeError ) throw removeError.message;
 
@@ -247,7 +241,7 @@ export const uploadReadonlyMaterial = async ( material_id: number, file: File ) 
 
     const filePath = `materials/${material_id}/${file.name}`;
 
-    const { data, error } = await supabase.storage.from("materials_media").upload(filePath, file, { upsert: true });
+    const { error } = await supabase.storage.from("materials_media").upload(filePath, file, { upsert: true });
 
     if( error ) throw error.message
 

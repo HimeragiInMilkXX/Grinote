@@ -5,13 +5,24 @@ import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(duration);
 
-export function stringify( value: any ) {
+export function stringify( value: unknown ) {
 
     return String( value || '' );
 
 }
 
-export function intervalToSeconds( value: { hours: number, minutes: number, seconds: number } ) {
+/** Human-readable message for an unknown thrown value. */
+export function errorMessage( e: unknown ): string {
+
+    if( e instanceof Error ) return e.message;
+    if( typeof e === "string" ) return e;
+    return String( e );
+
+}
+
+const pad2 = ( value: number ) => String( value ).padStart( 2, "0" );
+
+export function intervalToSeconds( value: DurationObject ) {
 
     return value.hours * 3600 + value.minutes * 60 + value.seconds;
 
@@ -19,7 +30,7 @@ export function intervalToSeconds( value: { hours: number, minutes: number, seco
 
 export function durationObjectToInterval( duration: DurationObject ): string {
 
-    return `${String(duration.hours).padStart(2, '0')}:${String(duration.minutes).padStart(2, '0')}:${String(duration.seconds).padStart(2, '0')}`;
+    return `${pad2(duration.hours)}:${pad2(duration.minutes)}:${pad2(duration.seconds)}`;
 
 }
 
@@ -39,11 +50,8 @@ export function intervalToDurationObject( interval: string ): DurationObject  {
 
 export function getDay( date: Date ) {
 
-    let day = date.getDay();
-
-    if( day == 0 ) day = 7;
-
-    return day;
+    // Monday = 1 ... Sunday = 7
+    return date.getDay() || 7;
 
 }
 
@@ -59,12 +67,15 @@ export function getMsFormatted( ms: number ) {
 
     const d = dayjs.duration( ms );
 
-    const hours = stringify(d.hours()).padStart( 2, "0" );
-    const minutes = stringify(d.minutes()).padStart( 2, "0" );
-    const seconds = stringify(d.seconds()).padStart( 2, "0" )
+    // asHours() so durations of a day or longer don't wrap back to 0h
+    const h = Math.floor( d.asHours() );
+
+    const hours = pad2( h );
+    const minutes = pad2( d.minutes() );
+    const seconds = pad2( d.seconds() );
 
     const str = "".concat(
-        d.hours() > 0 ? hours + "h" : "",
+        h > 0 ? hours + "h" : "",
         d.minutes() > 0 ? minutes + "m" : "",
         d.seconds() > 0 ? seconds + "s" : "" )
 
@@ -80,12 +91,10 @@ export function isXpGained( xp_change: number ): boolean {
 
 export function timestampToLocalDateTime( timestampString: string ) {
 
-    const d = new Date( timestampString );
+    // toISOString() is UTC, so format in local time instead
+    const d = dayjs( timestampString );
 
-    const localDate = d.toISOString().split('T')[0];
-    const localTime = d.toTimeString().split(' ')[0];
-
-    return { date: localDate, time: localTime }
+    return { date: d.format( "YYYY-MM-DD" ), time: d.format( "HH:mm:ss" ) }
 
 }
 
@@ -95,17 +104,11 @@ export function isBetween( value: number, min: number, max: number ) {
 
 }
 
-export function clamp( value: number, min: number, max: number ) {
+export function clamp( value: number, min: number, max: number ): number {
 
-    let minL = min, maxL = max;
+    const lower = Math.min( min, max );
+    const upper = Math.max( min, max );
 
-    if( min > max ) { minL = max, maxL = minL }
-
-    if( isBetween( value, minL, maxL ) ) return value;
-
-    if( value > maxL ) return maxL;
-    if( value < minL ) return minL;
-
-    if( value == min || value == max ) return value;
+    return Math.min( Math.max( value, lower ), upper );
 
 }

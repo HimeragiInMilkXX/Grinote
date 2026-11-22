@@ -1,15 +1,15 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient, requireUser } from "@/utils/supabase/server";
 
 export const saveCharacterProgress = async ( project_id: string, new_level: number, new_xp: number ) => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await requireUser( supabase );
 
     const { error: updateCharError } = await
-        supabase.from( "projects" ).update( { character_xp: new_xp, character_level: new_level } ).eq( "id", project_id ).eq( "user_id", user?.id )
+        supabase.from( "projects" ).update( { character_xp: new_xp, character_level: new_level } ).eq( "id", project_id ).eq( "user_id", user.id )
     
     if( updateCharError ) throw updateCharError.message;
 
@@ -56,10 +56,10 @@ export const updateXp = async ( project_id: string, newXP: number ) => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await requireUser( supabase );
 
     const { error: updateCharError } = await
-        supabase.from( "projects" ).update( { character_xp: newXP } ).eq( "id", project_id ).eq( "user_id", user?.id )
+        supabase.from( "projects" ).update( { character_xp: newXP } ).eq( "id", project_id ).eq( "user_id", user.id )
 
     if( updateCharError ) throw updateCharError.message;
 

@@ -7,19 +7,12 @@ import { getProject } from "@/lib/projects";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-type Props = {
-
-    searchParams: Promise<{ [key: string]: string | undefined }>;
-    params: any;
-
-}
-
-const ProjectTaskCompletePage = async ( { searchParams, params }: Props ) => {
+const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/project/[projectId]/task_complete"> ) => {
 
     const { recordId } = await searchParams;
     const { projectId } = await params;
 
-    if( !recordId ) redirect( `/project/${projectId}/dashboard` );
+    if( typeof recordId !== "string" ) redirect( `/project/${projectId}/dashboard` );
 
     const record: OnAirRecord = await getRecord( Number(recordId), projectId );
 

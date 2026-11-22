@@ -2,7 +2,6 @@
 
 import { TaskNodeType } from "@/types/flow"
 import { Background, Controls, Edge, Panel, ReactFlow, useEdgesState, useNodesState } from "@xyflow/react"
-import { RefObject, useCallback, useEffect, useImperativeHandle } from "react";
 import { getLayoutedElements } from "@/app/project/[projectId]/tree/clientActions";
 import { Button } from "@/components/ui/button";
 import PreviewTaskNode from "./preview-task-node";
@@ -13,40 +12,31 @@ const nodeTypes = {
 
 }
 
-export interface PreviewClientHandle {
+type PreviewClientProps = {
 
-    setPreviewNode: ( nodes: TaskNodeType[] ) => void;
-    setPreviewEdge: ( edges: Edge[] ) => void;
+    initialNodes: TaskNodeType[];
+    initialEdges: Edge[];
 
 }
 
+/** Read-only preview of a graph. It is mounted fresh each time the dialog opens, so initial state is enough. */
+const PreviewClient = ( { initialNodes, initialEdges }: PreviewClientProps ) => {
 
-const PreviewClient = ( { ref }: { ref: RefObject<PreviewClientHandle | null> }) => {
+    const [ nodes, setNodes ] = useNodesState<TaskNodeType>( initialNodes );
+    const [ edges, setEdges ] = useEdgesState<Edge>( initialEdges );
 
-    const [ nodes, setNodes ] = useNodesState([]);
-    const [ edges, setEdges ] = useEdgesState([])
+    const layoutNodes = () => {
 
-    const layoutNodes = useCallback( () => {
-        
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements( nodes, edges );
 
         setNodes( layoutedNodes );
         setEdges( layoutedEdges );
 
-    }, [ nodes, edges ] );
-
-    useImperativeHandle( ref, () => ({
-
-        setPreviewNode: ( nodes: TaskNodeType[] ) => setNodes( nodes ),
-        setPreviewEdge: ( edges: Edge[] ) => setEdges( edges ),
-
-    }), [setNodes, setEdges])
-
-    useEffect( () => { return () => {setEdges([]); setNodes([])}}, [])
+    };
 
     return (
         <div className="w-full aspect-video">
-        
+
             { ( nodes.length > 0 && edges.length > 0 ) && (
 
                 <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView>

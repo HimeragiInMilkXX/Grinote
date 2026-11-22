@@ -10,12 +10,7 @@ import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay"
 
 const NewProjectCharacterPanel = ( { characters }: {
 
-    characters: {
-        id: any;
-        name: any;
-        group: any;
-        description: any;
-    }[] | null,
+    characters: CharacterSummary[] | null,
 
 }) => {
 

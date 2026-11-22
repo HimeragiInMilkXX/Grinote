@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react";
 import { cn } from "cn";
 import Lightbox from "yet-another-react-lightbox";
 

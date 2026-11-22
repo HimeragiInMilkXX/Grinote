@@ -6,14 +6,14 @@ import { getRecords } from './serverActions';
 import ProjectDashboardCharacter from '@/components/project/character/project-dashboard-character';
 import { getActiveTask } from '../onair/serverActions';
 
-const ProjectPageDashboard = async ( { params }: { params: any }) => {
+const ProjectPageDashboard = async ( { params }: PageProps<"/project/[projectId]/dashboard"> ) => {
 
     const { projectId } = await params;
 
     const project: Project = await getProject( projectId );
     const records: OnAirRecord[] = await getRecords( projectId );
 
-    let activeTask: OnAirRecord | null = await getActiveTask( projectId );
+    const activeTask: OnAirRecord | null = await getActiveTask( projectId );
 
     return (
         <div className='flex gap-3'>

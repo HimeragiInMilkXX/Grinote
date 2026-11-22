@@ -8,7 +8,6 @@ import { useSetAtom } from "jotai";
 import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay";
 import MaterialListOptionsPanel, { MaterialListOptionsPanelHandle } from "@/components/material/list-options/material-list-options-panel";
 import { getProjectMaterials } from "@/app/project/[projectId]/materials/serverActions";
-import { Button } from "../ui/button";
 
 const MaterialListTab = ( { project_id }: { project_id: string }) => {
 
@@ -32,11 +31,10 @@ const MaterialListTab = ( { project_id }: { project_id: string }) => {
             const { filter, arrange } = materialListOptionsPanelRef.current.getOptionsValues();
 
             // Arrange
-            let orderList: Partial<Record<MaterialArrangableColumns, boolean>> = {};
-            orderList[arrange.column] = arrange.direction === "asc";
+            const orderList: Partial<Record<MaterialArrangableColumns, boolean>> = { [arrange.column]: arrange.direction === "asc" };
 
             // Filter
-            let filterList: Partial<Record<MaterialFilterableColumns, string>> = {};
+            const filterList: Partial<Record<MaterialFilterableColumns, string>> = {};
 
             if( filter.enableFilterType ) filterList.type = filter.typeFilter;
             if( filter.enableFilterColor ) filterList.color = filter.colorFilter;
@@ -56,13 +54,16 @@ const MaterialListTab = ( { project_id }: { project_id: string }) => {
 
         }
 
-    }, [ materialListOptionsPanelRef.current ])
+    }, [ project_id, setIsLoading ])
+
+    // Re-run the last search (keeps the current query) e.g. after editing/deleting a row
+    const reloadList = useCallback( () => handleSearch( searchQuery ), [ handleSearch, searchQuery ] )
 
     useEffect( () => {
 
         handleSearch()
 
-    }, [])
+    }, [ handleSearch ])
 
     return (
 
@@ -75,7 +76,7 @@ const MaterialListTab = ( { project_id }: { project_id: string }) => {
 
             </div>
 
-            <MaterialList materials={materialPagination?.materials} handleSearch={handleSearch}/>
+            <MaterialList materials={materialPagination?.materials ?? []} reloadList={reloadList}/>
 
         </div>
 

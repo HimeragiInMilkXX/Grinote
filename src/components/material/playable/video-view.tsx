@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react";
 import { VideoPlayer } from '@videojs/react/video';
 import { YouTubeVideo } from '@videojs/react/media/youtube-video';
 import { VideoSkin } from '@/components/videojs/video/skin';

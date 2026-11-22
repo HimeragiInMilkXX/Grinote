@@ -14,43 +14,40 @@ export interface CharacterPickCarouselHandle {
 interface CharacterPickCarouselProps {
 
     ref?: React.Ref<CharacterPickCarouselHandle>;
-    characters: {
-        id: any;
-        name: any;
-        group: any;
-        description: any;
-    }[] | null
+    characters: CharacterSummary[] | null
 
 }
 
 const CharacterPickCarousel = ( { ref, characters }: CharacterPickCarouselProps ) => {
 
     const [ api, setApi ] = useState<CarouselApi>();
-    const [ picked, setPicked ] = useState<number>(0);
+    const [ pickedIndex, setPickedIndex ] = useState<number>(0);
 
     useEffect( () => {
 
         if( !api ) return;
 
-        setPicked(api.selectedScrollSnap() + 1)
+        const onSelect = () => setPickedIndex( api.selectedScrollSnap() );
 
-        api.on("select", () => {
-            setPicked(api.selectedScrollSnap() + 1)
-        })
+        onSelect();
+        api.on("select", onSelect);
+
+        return () => { api.off("select", onSelect) };
 
     }, [api] )
 
     useImperativeHandle( ref, () => ({
 
-        getPickedCharacterId: () => picked
+        // Use the actual character id rather than assuming ids match carousel order
+        getPickedCharacterId: () => characters?.[pickedIndex]?.id ?? 1
 
     }))
 
     return (
         <Carousel className="w-full [*]:select-none" opts={{ loop: true }} setApi={setApi}>
             <CarouselContent>
-                {characters?.map((char, index) => (
-                    <CarouselItem key={index}>
+                {characters?.map((char) => (
+                    <CarouselItem key={char.id}>
                         <div className="p-1">
                             <Card className="py-0">
                                 <CardContent className={`flex aspect-square items-end justify-end p-6 relative`}>

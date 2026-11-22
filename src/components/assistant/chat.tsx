@@ -27,7 +27,6 @@ import { useChatContext } from "@/providers/chat-provider"
 import { ProposalQuestionCard } from "./proposal-question-card"
 import { useAtom, useSetAtom } from "jotai"
 import { graphEditRequestAtom } from "@/atoms/graph_edit_request_atom"
-import { useState } from "react"
 import { graphEditReviewedProposalAtom } from "@/atoms/graph_edit_reviewed_proposal_atom"
 import { redirect } from "next/navigation"
 

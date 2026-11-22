@@ -1,19 +1,19 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient, requireUser } from "@/utils/supabase/server";
 import { updateResource } from "./character/serverActions";
 
 export const updateTutorialProgress = async ( project_id: string, index: number ) => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await requireUser( supabase );
 
     // Check if the desired update progress is already completed
     const { data: previousProgress, error: previousProgressError } = await supabase
         .from( "projects" )
         .select( "tutorial_progress" )
-        .eq( "user_id", user?.id )
+        .eq( "user_id", user.id )
         .eq( "id", project_id )
         .single()
 
@@ -31,7 +31,7 @@ export const updateTutorialProgress = async ( project_id: string, index: number 
     const { error: updateError } = await supabase
         .from( "projects" )
         .update({ tutorial_progress: newProgress })
-        .eq( "user_id", user?.id )
+        .eq( "user_id", user.id )
         .eq( "id", project_id )
 
     if( updateError ) throw updateError?.message;

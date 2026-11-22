@@ -2,7 +2,7 @@ import { Eye, SquarePen, Trash } from "lucide-react";
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "../ui/context-menu"
 import { Material } from "@/types/materials";
 import MaterialEditPanel, { MaterialEditPanelHandle } from "./edit/material-edit-panel";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 type MaterialRowContextMenuProps = {
 

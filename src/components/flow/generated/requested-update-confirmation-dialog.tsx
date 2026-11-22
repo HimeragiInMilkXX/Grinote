@@ -1,13 +1,12 @@
 "use client"
 
-import React, { useCallback, useEffect } from "react";
 import { Button } from "../../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../ui/dialog"
-import PreviewClient, { PreviewClientHandle } from "./preview-client";
+import PreviewClient from "./preview-client";
 import { TaskNodeType } from "@/types/flow";
 import { Edge, ReactFlowProvider } from "@xyflow/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { assistantDrawerOpenAtom, setAssistantDrawerOpen } from "@/components/assistant/assistant-drawer";
+import { useSetAtom } from "jotai";
+import { assistantDrawerOpenAtom } from "@/components/assistant/assistant-drawer";
 
 type Props = {
 
@@ -21,20 +20,9 @@ type Props = {
 
 const RequestedUpdateConfirmationPanel = ( { isOpen, onConfirm, onDecline, getPreviewGraph }: Props ) => {
 
-    const previewClientRef = React.useRef<PreviewClientHandle | null>(null);
-
-    useEffect( () => {
-
-        if( !previewClientRef.current ) return;
-
-        const { nodes, edges } = getPreviewGraph();
-
-        previewClientRef.current.setPreviewNode(nodes);
-        previewClientRef.current.setPreviewEdge(edges);
-
-    }, [previewClientRef.current] )
-
     const setAssistantDrawerOpen = useSetAtom(assistantDrawerOpenAtom);
+
+    const previewGraph = isOpen ? getPreviewGraph() : null;
 
     return (
         <Dialog open={isOpen}>
@@ -46,9 +34,11 @@ const RequestedUpdateConfirmationPanel = ( { isOpen, onConfirm, onDecline, getPr
                     </DialogDescription>
                 </DialogHeader>
 
-                <ReactFlowProvider>
-                    <PreviewClient ref={previewClientRef}/>
-                </ReactFlowProvider>
+                { previewGraph && (
+                    <ReactFlowProvider>
+                        <PreviewClient initialNodes={previewGraph.nodes} initialEdges={previewGraph.edges}/>
+                    </ReactFlowProvider>
+                ) }
 
                 <div className="flex gap-3 items-center">
 

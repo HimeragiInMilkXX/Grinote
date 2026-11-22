@@ -1,28 +1,18 @@
 "use client"
 
-import { Plus } from "lucide-react"
-import { Button } from "../../ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../../ui/dialog"
-import { cn } from "cn"
 import { RefObject, useEffect, useImperativeHandle, useState } from "react"
-import MaterialCreateForm from "./material-edit-form"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog"
 import { z } from "zod/v4"
 import { FormProvider, SubmitHandler, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { saveMaterial, updateMaterial } from "@/app/project/[projectId]/materials/serverActions"
+import { updateMaterial } from "@/app/project/[projectId]/materials/serverActions"
 import { useSetAtom } from "jotai"
-import { currentMaterialTabAtom, openedMaterialTabsAtom } from "../material-tabs"
+import { openedMaterialTabsAtom } from "../material-tabs"
 import { Material } from "@/types/materials"
 import MaterialEditForm from "./material-edit-form"
+import { materialBaseFields } from "../material-common-fields"
 
-export const materialEditFormSchema = z.object({
-
-    label: z.string().optional(),
-    color: z.string().optional(),
-    name: z.string().nonempty(),
-    description: z.string().optional(),
-
-})
+export const materialEditFormSchema = z.object( materialBaseFields )
 
 export type MaterialEditFormInput = z.input<typeof materialEditFormSchema>;
 export type MaterialEditFormOutput = z.output<typeof materialEditFormSchema>;
@@ -33,12 +23,21 @@ export interface MaterialEditPanelHandle {
 
 }
 
+const toFormValues = ( material: Material ): MaterialEditFormInput => ({
+
+    label: material.label,
+    color: material.color,
+    name: material.name,
+    description: material.description ?? "",
+
+})
+
 const MaterialEditPanel = ( { ref, material, reloadList }: { ref: RefObject<MaterialEditPanelHandle | null>, material: Material, reloadList: () => void } ) => {
 
     const form = useForm<MaterialEditFormInput, unknown, MaterialEditFormOutput>({
 
         resolver: zodResolver( materialEditFormSchema ),
-        defaultValues: { label: material.label, color: material.color, name: material.name, description: material.description ?? "" },
+        defaultValues: toFormValues( material ),
 
     })
 
@@ -50,11 +49,12 @@ const MaterialEditPanel = ( { ref, material, reloadList }: { ref: RefObject<Mate
 
     }))
 
+    // Re-sync the form with the latest material every time the dialog opens
     useEffect( () => {
 
-        form.reset();
+        if( open ) form.reset( toFormValues( material ) );
 
-    }, [open])
+    }, [ open, material, form ])
 
     const setOpenedTabs= useSetAtom(openedMaterialTabsAtom)
 

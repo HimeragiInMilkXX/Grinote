@@ -2,14 +2,15 @@
 
 import { TaskNodeType } from "@/types/flow";
 import dagre from "@dagrejs/dagre";
-import { Edge } from "@xyflow/react";
-
-const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel( () => ({}) );
+import { Edge, Position } from "@xyflow/react";
 
 const nodeWidth = 172;
 const nodeHeight = 36;
 
-export const getLayoutedElements = ( nodes: TaskNodeType[], edges: Edge[] ) => {
+export const getLayoutedElements = ( nodes: TaskNodeType[], edges: Edge[] ): { nodes: TaskNodeType[], edges: Edge[] } => {
+
+    // A fresh graph per call, so nodes removed since the last layout don't linger
+    const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel( () => ({}) );
 
     dagreGraph.setGraph( { rankdir: 'LR' } );
 
@@ -23,11 +24,11 @@ export const getLayoutedElements = ( nodes: TaskNodeType[], edges: Edge[] ) => {
 
         const nodeWithPosition = dagreGraph.node( node.id );
 
-        const newNode = {
+        return {
 
             ...node,
-            targetPosition: 'left',
-            sourcePosition: 'right',
+            targetPosition: Position.Left,
+            sourcePosition: Position.Right,
             position: {
 
                 x: nodeWithPosition.x - nodeWidth / 2,
@@ -36,8 +37,6 @@ export const getLayoutedElements = ( nodes: TaskNodeType[], edges: Edge[] ) => {
             }
 
         }
-
-        return newNode
 
     })
 

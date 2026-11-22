@@ -3,23 +3,17 @@
 import { TabsTrigger } from '../ui/tabs'
 import { Button } from '../ui/button'
 import { X } from 'lucide-react'
-import { useCallback } from 'react'
 import { cn } from 'cn'
 
 const MaterialTabTrigger = ( { closeTab = () => {}, value, label, className = "" }: { closeTab?: ( id: number ) => void, value: string, label: string | React.ReactNode, className?: string }) => {
 
-    const closeTabTrigger = useCallback( (e: any ) => {
+    const closeTabTrigger = ( e: React.MouseEvent ) => {
 
         e.stopPropagation()
 
-        try {
+        closeTab( Number(value) )
 
-            const id = Number(value)
-            closeTab( id )
-
-        } finally { return }
-
-    }, [ value, closeTab ])
+    }
 
     return (
         <TabsTrigger value={value} className="flex-none h-fit! " render={

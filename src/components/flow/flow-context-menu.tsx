@@ -11,7 +11,7 @@ export interface ContextMenuProps {
 
     x: number;
     y: number;
-    insertNewTask: (e: any, isLoop?: boolean, isAction?: boolean ) => void;
+    insertNewTask: (e: React.MouseEvent, isLoop?: boolean, isAction?: boolean ) => void;
     layoutNodes: () => void;
     saveGraph: () => void;
     insertByInput: ( nodes: string, edges: string ) => void;

@@ -2,7 +2,7 @@
 
 import { TableTaskRow, TableTaskRows, TaskNodeType } from "@/types/flow";
 import { createActionClient } from "@/utils/supabase/actions";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, requireUser } from "@/utils/supabase/server";
 import { durationObjectToInterval, intervalToDurationObject } from "@/utils/utils";
 import { Edge, ReactFlowJsonObject } from "@xyflow/react";
 
@@ -154,9 +154,7 @@ export const fetchGraph = async ( project_id: string ) => {
 
     const supabase = await createClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if( !user ) throw new Error( "Not logged in" );
+    await requireUser( supabase );
 
     const { data: nodes, error: nodesError } = await supabase.from('nodes').select('*').eq( "project_id", project_id );
 

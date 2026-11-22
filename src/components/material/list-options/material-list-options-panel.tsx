@@ -9,7 +9,7 @@ import MaterialListArrangePanel from "./material-list-arrange-panel"
 import z from "zod/v4"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { MaterialArrangableColumns, MaterialFilterableColumns, MaterialType } from "@/types/materials"
+import { MaterialFilterableColumns } from "@/types/materials"
 import { CircleCheck, CircleX } from "lucide-react"
 
 export const materialListOptionsFormSchema = z.object({
@@ -35,36 +35,18 @@ export const materialListOptionsFormSchema = z.object({
 
 })
 
+export type MaterialListOptionsValues = z.infer<typeof materialListOptionsFormSchema>
+
 export type MaterialListOptionsPanelHandle = {
 
-    getOptionsValues: () => {
-
-        filter: {
-
-            enableFilterType: boolean,
-            enableFilterColor: boolean,
-            enableFilterLabel: boolean,
-            typeFilter: string,
-            colorFilter: string,
-            labelFilter: string
-
-        },
-
-        arrange: {
-
-            column: string,
-            direction: string
-
-        }
-
-    },
+    getOptionsValues: () => MaterialListOptionsValues,
 
 }
 
 const MaterialListOptionsPanel = ({ ref, project_id }: { ref: RefObject<MaterialListOptionsPanelHandle | null>, project_id: string }) => {
 
 
-    const form = useForm({
+    const form = useForm<MaterialListOptionsValues>({
 
         resolver: zodResolver( materialListOptionsFormSchema ),
 
@@ -100,21 +82,16 @@ const MaterialListOptionsPanel = ({ ref, project_id }: { ref: RefObject<Material
 
     })
 
-    const [ isOptionsEnabled, setIsOptionsEnabled ] = useState<boolean>(false);
-
-    useEffect( () => {
-
-        setIsOptionsEnabled( enableFilterType || enableFilterColor || enableFilterLabel || !(
-            column === "updated_at" && direction === "desc"
-        ) )
-
-    }, [ enableFilterType, enableFilterColor, enableFilterLabel, column, direction ] )
+    // Whether any option differs from the defaults
+    const isOptionsEnabled = enableFilterType || enableFilterColor || enableFilterLabel || !(
+        column === "updated_at" && direction === "desc"
+    )
 
     useImperativeHandle( ref, () => ({
 
         getOptionsValues: () => form.getValues(),
 
-    }), [])
+    }), [ form ])
 
     const [ existingFilterableColumnValues, setExistingFilterableColumnValues ] = useState<Record<MaterialFilterableColumns, string[]>>();
 
@@ -123,7 +100,7 @@ const MaterialListOptionsPanel = ({ ref, project_id }: { ref: RefObject<Material
         getMaterialsExistingFilterableColumnValues( project_id )
             .then( res => setExistingFilterableColumnValues( res ) )
 
-    }, [])
+    }, [ project_id ])
 
     return (
         <PopoverSimplfied

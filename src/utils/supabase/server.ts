@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 export async function createClient() {
 
@@ -25,5 +26,18 @@ export async function createClient() {
         }
 
     )
+
+}
+/**
+ * Returns the signed-in user, or throws if there is none.
+ * Use in server actions instead of querying with an undefined `user?.id`.
+ */
+export async function requireUser( supabase: SupabaseClient ): Promise<User> {
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if( !user ) throw new Error( "Not logged in" );
+
+    return user;
 
 }

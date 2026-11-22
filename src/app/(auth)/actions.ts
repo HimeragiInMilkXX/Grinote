@@ -1,37 +1,34 @@
 "use server";
 
-import { loginFormSchema } from "@/components/auth/login-form";
-import { signupFormSchema } from "@/components/auth/signup-form";
+import { AuthActionResult, AuthFormValues, loginFormSchema, signupFormSchema } from "@/components/auth/schemas";
 import { createActionClient } from "@/utils/supabase/actions";
-import { stringify } from "@/utils/utils";
 import { redirect } from "next/navigation";
-import { z } from "zod/v4";
 
-export async function login( formData: z.infer<typeof loginFormSchema> ) {
+export async function login( formData: AuthFormValues ): Promise<AuthActionResult | void> {
+
+    const parsed = loginFormSchema.safeParse( formData );
+    if( !parsed.success ) return { error: "入力内容を確認してください。" };
 
     const supabase = await createActionClient();
 
-    const email = stringify( formData.email );
-    const password = stringify( formData.password );
+    const { error } = await supabase.auth.signInWithPassword( parsed.data );
 
-    const { error } = await supabase.auth.signInWithPassword( { email, password } );
-
-    if( error ) throw error;
+    if( error ) return { error: "メールアドレスまたはパスワードが正しくありません。" };
 
     redirect("/")
 
 }
 
-export async function signup( formData: z.infer<typeof signupFormSchema> ) {
+export async function signup( formData: AuthFormValues ): Promise<AuthActionResult | void> {
+
+    const parsed = signupFormSchema.safeParse( formData );
+    if( !parsed.success ) return { error: "入力内容を確認してください。" };
 
     const supabase = await createActionClient();
 
-    const email = stringify( formData.email );
-    const password = stringify( formData.password );
+    const { error } = await supabase.auth.signUp( parsed.data );
 
-    const { error } = await supabase.auth.signUp( { email, password } );
-
-    if( error ) throw error;
+    if( error ) return { error: "アカウントを作成できませんでした。" + error.message };
 
     redirect("/")
 

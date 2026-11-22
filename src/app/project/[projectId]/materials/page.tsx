@@ -1,6 +1,6 @@
 import MaterialTabs from "@/components/material/material-tabs"
 
-const ProjectPageMaterial = async ({ params }: { params: any }) => {
+const ProjectPageMaterial = async ( { params }: PageProps<"/project/[projectId]/materials"> ) => {
 
     const { projectId } = await params;
 

@@ -7,6 +7,7 @@ import { getProject } from "@/lib/projects";
 import { redirectIfNotAuthenticated } from "@/utils/redirectIfNotAuthenticated";
 import { redirect } from "next/navigation";
 import { ChatProvider } from "@/providers/chat-provider";
+import { errorMessage } from "@/utils/utils";
 
 export default async function ProjectPageLayout({ children, params }: LayoutProps<"/project/[projectId]">) {
 
@@ -19,9 +20,9 @@ export default async function ProjectPageLayout({ children, params }: LayoutProp
 
 		project = await getProject( projectId );
 
-	} catch( e: any ) {
+	} catch( e ) {
 
-		console.log( e.message );
+		console.error( errorMessage( e ) );
 		redirect("/dashboard")
 
 	}

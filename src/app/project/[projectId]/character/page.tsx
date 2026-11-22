@@ -1,7 +1,7 @@
 import CharacterTrainingDisplay from '@/components/project/character/training/character-training-display';
 import { getProject } from '@/lib/projects';
 
-const ProjectPageCharacter = async ( { params }: { params: any }) => {
+const ProjectPageCharacter = async ( { params }: PageProps<"/project/[projectId]/character"> ) => {
 
     const { projectId } = await params;
 

@@ -5,17 +5,15 @@ import { useEffect, useRef, useState } from 'react'
 import CharacterXPBar, { CharacterXPBarHandle } from '../character-xp-bar';
 import CharacterGrowthStep from '../character-growth-step';
 import ResourcesPanel from './resources/resources-panel';
-import { updateTutorialProgress } from '@/app/project/[projectId]/serverActions';
-import { toast } from 'sonner';
 import { getProjectResources } from '@/app/project/[projectId]/character/serverActions';
 import { useSetAtom } from 'jotai';
 import { isLoadingAtom } from '@/components/miscellaneous/loading-overlay';
-import { currentStepAtom } from '@/components/tutorial/project/project-tutorial-panel';
+import { useTutorialStep } from '@/hooks/useTutorialStep';
 
 const CharacterTrainingDisplay = ( { project }: { project: Project }) => {
 
     // For onboarding
-    const setCurrentStepAtom = useSetAtom(currentStepAtom);
+    const completeTutorialStep = useTutorialStep( project.id );
 
 
     const riveCharacterRef = useRef<RiveCharacterHandle>(null);
@@ -36,13 +34,7 @@ const CharacterTrainingDisplay = ( { project }: { project: Project }) => {
 
         setIsLoading( true )
 
-        updateTutorialProgress(project.id, 4).then( ( res ) => {
-            if( res ) {
-                toast.success("「進捗を確認する」達成！", { position: "top-left" })
-                toast.success("オンボーディング完了！リソース報酬どーぞ", { position: "top-left" })
-                setCurrentStepAtom( prev => prev + 1 )
-            }
-        } ).then( () => {
+        completeTutorialStep( 4 ).then( () => {
 
             getProjectResources( project.id ).then( res => {setProjectResources( res ); setIsLoading(false);})
 

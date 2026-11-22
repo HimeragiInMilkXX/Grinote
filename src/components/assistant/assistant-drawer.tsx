@@ -7,9 +7,9 @@ import "@/components/assistant/styles/assistant.css"
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
 import { Maximize2, Minimize2, Sparkle } from "lucide-react"
-import {useState } from "react"
+import { useState } from "react"
 import { cn } from "cn"
-import { atom, useAtom, useSetAtom } from "jotai"
+import { atom, useAtom } from "jotai"
 
 const fontSans = Geist({ subsets: ["latin"], variable: "--font-sans" })
 const fontMono = Geist_Mono({

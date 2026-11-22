@@ -6,15 +6,12 @@ import CharacterXPBar, { CharacterXPBarHandle } from "./character-xp-bar";
 import { saveCharacterProgress } from "@/app/project/[projectId]/character/serverActions";
 import { redeemReward } from "@/app/project/[projectId]/task_complete/serverActions";
 import { OnAirRecord } from "@/types/records";
-import { updateTutorialProgress } from "@/app/project/[projectId]/serverActions";
-import { toast } from "sonner";
-import { useSetAtom } from "jotai";
-import { currentStepAtom } from "@/components/tutorial/project/project-tutorial-panel";
+import { useTutorialStep } from "@/hooks/useTutorialStep";
 
 const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { record: OnAirRecord, project: Project, characterLevelChanges: CharacterLevelChanges }) => {
 
     // For onboarding
-    const setCurrentStepAtom = useSetAtom(currentStepAtom);
+    const completeTutorialStep = useTutorialStep( project.id );
 
 
     const riveCharacterRef = useRef<RiveCharacterHandle>(null);
@@ -25,12 +22,7 @@ const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { re
 
     useEffect( () => {
 
-        updateTutorialProgress(project.id, 3).then( ( res ) => {
-            if( res ) {
-                toast.success("「タスクを完了する」達成！次はキャラを確認しよう！", { position: "top-left" })
-                setCurrentStepAtom( prev => prev + 1 )
-            }
-        })
+        completeTutorialStep( 3 )
 
     }, [])
 

@@ -8,7 +8,7 @@ interface ControlProps {
     className?: string // React uses className instead of class
     editor: Editor
     title: string
-    editorKey: string | any // RENAMED from 'key' because 'key' is reserved in React!
+    editorKey: string | Record<string, unknown> // RENAMED from 'key' because 'key' is reserved in React!
     onChange: () => void
     isActive?: (editor: Editor) => boolean
     children: React.ReactNode // React uses React.ReactNode instead of ReactElement
@@ -26,18 +26,17 @@ export default function Control({
 
     // Replicating createEditorTransaction behavior:
     // Tracks active state and updates on every editor transaction
-    const [isPressed, setIsPressed] = useState(() => {
-        if (!editor) return false
-        return isActive ? isActive(editor) : editor.isActive(editorKey)
-    })
+    const checkActive = () => {
+        if (isActive) return isActive(editor)
+        return typeof editorKey === 'string' ? editor.isActive(editorKey) : editor.isActive(editorKey)
+    }
+
+    const [isPressed, setIsPressed] = useState(() => editor ? checkActive() : false)
 
     useEffect(() => {
         if (!editor) return
 
-        const handleTransaction = () => {
-            const active = isActive ? isActive(editor) : editor.isActive(editorKey)
-            setIsPressed(active)
-        }
+        const handleTransaction = () => setIsPressed(checkActive())
 
         // Listen to Tiptap transaction events
         editor.on('transaction', handleTransaction)
@@ -49,7 +48,8 @@ export default function Control({
         return () => {
             editor.off('transaction', handleTransaction)
         }
-    }, [editor, editorKey, isActive])
+    // editorKey may be an inline object, so depend on its serialized form
+    }, [editor, JSON.stringify(editorKey), isActive])
 
     return (
         <Toggle

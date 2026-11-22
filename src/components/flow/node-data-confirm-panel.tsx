@@ -22,7 +22,7 @@ const DurationPicker = dynamic(() => import("react-duration-picker"), {
 interface Props {
 
     selectedNode: TaskNodeType;
-    onPointerDown: (event: any) => void;
+    onPointerDown: (event: React.PointerEvent) => void;
     project_id: string;
 
 }
