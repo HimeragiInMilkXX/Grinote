@@ -1,17 +1,17 @@
 "use server";
 
 import { createClient, requireUser } from "@/utils/supabase/server";
+import { createActionClient } from "@/utils/supabase/actions";
+import { addProjectXp } from "@/lib/rewards/award-task";
 
-export const saveCharacterProgress = async ( project_id: string, new_level: number, new_xp: number ) => {
+/** Adds XP (e.g. from feeding a resource). The new level is derived on the server from total XP. */
+export const addCharacterXp = async ( project_id: string, xp: number ): Promise<{ totalXp: number, level: number }> => {
 
-    const supabase = await createClient();
+    const supabase = await createActionClient();
 
     const user = await requireUser( supabase );
 
-    const { error: updateCharError } = await
-        supabase.from( "projects" ).update( { character_xp: new_xp, character_level: new_level } ).eq( "id", project_id ).eq( "user_id", user.id )
-    
-    if( updateCharError ) throw updateCharError.message;
+    return addProjectXp( supabase, { projectId: project_id, userId: user.id, xp } );
 
 }
 
@@ -49,19 +49,6 @@ export const getResourceFromId = async ( resource_id: number ): Promise<ProjectR
     if( error ) throw error.message;
 
     return data;
-
-}
-
-export const updateXp = async ( project_id: string, newXP: number ) => {
-
-    const supabase = await createClient();
-
-    const user = await requireUser( supabase );
-
-    const { error: updateCharError } = await
-        supabase.from( "projects" ).update( { character_xp: newXP } ).eq( "id", project_id ).eq( "user_id", user.id )
-
-    if( updateCharError ) throw updateCharError.message;
 
 }
 

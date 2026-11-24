@@ -16,16 +16,7 @@ import { redirect } from "next/navigation";
 import { addWeeks, format } from "date-fns";
 import { useSetAtom } from "jotai";
 import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay";
-
-const WEEKDAYS = [
-    { value: 1, label: "月" },
-    { value: 2, label: "火" },
-    { value: 3, label: "水" },
-    { value: 4, label: "木" },
-    { value: 5, label: "金" },
-    { value: 6, label: "土" },
-    { value: 7, label: "日" },
-];
+import { WEEKDAYS } from "@/lib/projects/work-days";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,

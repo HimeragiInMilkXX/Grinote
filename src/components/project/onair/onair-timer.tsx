@@ -41,7 +41,7 @@ const OnAirTimer = ( { activeTask }: Props ) => {
 
         pauseTimer();
         setEnded( true )
-        await completeTask( activeTask.id, activeTask.nodes!, activeTask.project_id, elapsedMs );
+        await completeTask( activeTask.id, activeTask.project_id, elapsedMs );
 
     }
 

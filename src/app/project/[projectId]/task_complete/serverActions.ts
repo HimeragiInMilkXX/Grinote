@@ -2,7 +2,7 @@
 
 import { OnAirRecord } from "@/types/records";
 import { createClient, requireUser } from "@/utils/supabase/server"
-import { updateResource, updateXp } from "../character/serverActions";
+import { createActionClient } from "@/utils/supabase/actions";
 
 export const getRecord = async ( record_id: number, project_id: string ): Promise<OnAirRecord> => {
 
@@ -20,26 +20,25 @@ export const getRecord = async ( record_id: number, project_id: string ): Promis
 
 }
 
-export const redeemReward = async ( record_id: number, project_id: string, currentXP: number ) => {
+/**
+ * Marks the reward animation as shown. XP and resources were already awarded at completion
+ * (complete_task_with_reward), so this writes nothing else.
+ */
+export const markRewardShown = async ( record_id: number, project_id: string ) => {
 
-    const supabase = await createClient();
+    const supabase = await createActionClient();
 
     const user = await requireUser( supabase );
 
-    const { data: record, error: updateBoolError } = await
-        supabase
+    const { error } = await supabase
         .from( "records" )
         .update( { reward_redeemed: true } )
         .eq( "id", record_id )
         .eq( "project_id", project_id )
         .eq( "user_id", user.id )
         .eq( "status", "completed" )
-        .eq( "reward_redeemed", false )
-        .select( "xp_change, resource_gained" ).single();
+        .eq( "reward_redeemed", false );
 
-    if( updateBoolError ) throw updateBoolError.message;
-
-    await updateXp( project_id, currentXP + record.xp_change );
-    await updateResource( project_id, record.resource_gained )
+    if( error ) throw error.message;
 
 }

@@ -1,6 +1,7 @@
 "use server";
 
-import { TableTaskRow, Task } from "@/types/flow";
+import { Task } from "@/types/flow";
+import { awardTaskCompletion } from "@/lib/rewards/award-task";
 import { OnAirRecord } from "@/types/records";
 import { createActionClient } from "@/utils/supabase/actions";
 import { createClient, requireUser } from "@/utils/supabase/server";
@@ -157,36 +158,19 @@ export const resumeTask = async ( record_id: number, node_id: string, project_id
 
 }
 
-export const completeTask = async ( record_id: number, node: TableTaskRow, project_id: string, duration: number ) => {
-
-    const node_id = node.id;
+/**
+ * Completes the record and awards its XP (Reward Engine v1.0, see docs/reward-engine.md).
+ * The record, node progress, project XP/level/streak and resources are written in one
+ * transaction; calling this again for an already completed record awards nothing.
+ */
+export const completeTask = async ( record_id: number, project_id: string, duration: number ) => {
 
     const supabase = await createActionClient();
 
-    const xp_change = 10;
+    const user = await requireUser( supabase );
 
-    const resource_gained: Record<string, number> = { 1: 1, 2: 1, 3: 1 };
+    const { recordId } = await awardTaskCompletion( supabase, { recordId: record_id, projectId: project_id, userId: user.id, durationMs: duration } );
 
-    const { data, error: recordError } = await supabase.from("records").update({ status: "completed", duration, completed_at: new Date(), xp_change: xp_change, resource_gained: resource_gained, reward_redeemed: false }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).in("status", ["active", "paused"]).select("id").single();
-
-    if( recordError ) throw recordError.message;
-
-    if( node.isLoop ) {
-
-        const repetitions_completed = node.repetitions_completed + 1;
-
-        const { error: nodeError } = await supabase.from("nodes").update( { repetitions_completed, isCompleted: repetitions_completed == node.repetitions_required  } ).eq("id", node_id).eq("project_id", project_id);
-
-        if( nodeError ) throw nodeError.message;
-
-    } else {
-
-        const { error: nodeError } = await supabase.from("nodes").update( { isCompleted: true } ).eq("id", node_id).eq("project_id", project_id);
-
-        if( nodeError ) throw nodeError.message;
-
-    }
-
-    redirect( `/project/${project_id}/task_complete?recordId=${data.id}` )
+    redirect( `/project/${project_id}/task_complete?recordId=${recordId}` )
 
 }

@@ -63,7 +63,7 @@ const CharacterTrainingDisplay = ( { project }: { project: Project }) => {
 
             <h2 className='font-bold text-2xl text-center'> { project.character_given_name } - { project.characters?.name } </h2>
 
-            <CharacterXPBar project_id={project.id} ref={characterXPBarRef} growth_step={project.characters!.growth_step} initLevel={project.character_level} initTotalXp={project.character_xp}/>
+            <CharacterXPBar ref={characterXPBarRef} growth_step={project.characters!.growth_step} initTotalXp={project.character_xp}/>
             <CharacterGrowthStep growth_step={project.characters!.growth_step}/>
             <ResourcesPanel project_id={project.id} projectResources={projectResources ?? []} characterXP={characterXPBarRef}/>
         </section>

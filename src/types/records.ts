@@ -14,7 +14,11 @@ export type OnAirRecord = {
     xp_change?: number;
     nodes?: TableTaskRow;
     projects: Project;
+    /** true once the reward animation was shown (XP itself is awarded at completion) */
     reward_redeemed: boolean;
     resource_gained: Record<string, number>
+    /** Reward snapshot (TaskRewardBreakdown, src/lib/rewards/breakdown.ts); null on records before Reward Engine v1.0 */
+    reward_breakdown?: unknown;
+    formula_version?: string | null;
 
 }

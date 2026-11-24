@@ -56,7 +56,7 @@ vi.mock( "@/app/project/[projectId]/tree/serverActions", () => ({
 vi.mock( "@/lib/projects", () => ({
     getProject: vi.fn( async () => ({
         id: "eval-project", name: "ギター", final_goal: "ギターで1曲弾けるようになる", description: "初心者。週に数回練習したい。",
-        achieve_data_goal: new Date( "2027-03-01" ), daily_time_goal: "00:30:00", work_days: [ true, false, true, false, true, true, false ], streak: 4,
+        achieve_date_goal: "2027-03-01", character_name_changed_at: null, daily_time_goal: "00:30:00", work_days: [ 1, 3, 5, 6 ], streak: 4,
     }) ),
 }) );
 

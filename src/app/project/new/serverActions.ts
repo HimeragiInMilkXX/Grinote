@@ -4,7 +4,7 @@ import { NewProjectInformation } from "@/atoms/new_project_atom";
 import { createActionClient } from "@/utils/supabase/actions";
 import { randomUUID } from "node:crypto";
 
-export async function createNewProject( data: NewProjectInformation, work_days: boolean[], daily_time_goal: string ) {
+export async function createNewProject( data: NewProjectInformation, work_days: number[], daily_time_goal: string ) {
 
     const supabase = await createActionClient();
 

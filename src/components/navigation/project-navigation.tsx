@@ -1,13 +1,14 @@
 "use client";
 
 import { getActiveTask } from "@/app/project/[projectId]/onair/serverActions";
-import { House, Network, RadioTower, Cat, FolderBookmark } from "lucide-react";
+import { House, Network, RadioTower, Cat, FolderBookmark, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { treeRequiresSaveActionAtom } from "@/atoms/tree_requires_save_action_atom";
 import { memoUnsavedAtom } from "@/atoms/material_atoms";
+import { projectSettingsDirtyAtom } from "@/atoms/project_settings_atoms";
 import { useAtomValue } from "jotai/react";
 
 type Props = {
@@ -45,6 +46,11 @@ const ProjectNavigation = ( { projectId }: Props ) => {
             href: `/project/${projectId}/character`,
             icon: Cat,
             label: "キャラクター"
+        },
+        {
+            href: `/project/${projectId}/settings`,
+            icon: Settings,
+            label: "設定"
         }
     ];
 
@@ -62,7 +68,10 @@ const ProjectNavigation = ( { projectId }: Props ) => {
     // unsaved memo edits (materials page, or the material sheet on tree / on-air)
     const unsavedMemoIds = useAtomValue( memoUnsavedAtom );
 
-    const hasUnsavedChanges = useMemo( () => ( unsavedChanges.projectId === projectId && unsavedChanges.requiresSave ) || unsavedMemoIds.length > 0, [ unsavedChanges, unsavedMemoIds, projectId ] );
+    // unsaved project settings
+    const unsavedSettings = useAtomValue( projectSettingsDirtyAtom );
+
+    const hasUnsavedChanges = useMemo( () => ( unsavedChanges.projectId === projectId && unsavedChanges.requiresSave ) || unsavedMemoIds.length > 0 || unsavedSettings, [ unsavedChanges, unsavedMemoIds, unsavedSettings, projectId ] );
 
     return (
         <nav className="absolute top-1/2 -translate-y-1/2 left-16 z-10">

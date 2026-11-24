@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 import z from "zod/v4"
 import { createNewProject } from "./serverActions"
 import { createClient } from "@/utils/supabase/client"
+import { normalizeWorkDays } from "@/lib/projects/work-days"
 
 export async function handlePickCharacter( pickedId: number ) {
 
@@ -54,11 +55,7 @@ export async function handleCreateProject() {
         throw new Error( "Incomplete project data" );
     }
 
-    const work_days: boolean[] = Array.from( { length: 7 }, ( _, i ) => {
-
-        return data.work_days.includes( i+1 );
-
-    })
+    const work_days = normalizeWorkDays( data.work_days );
 
     const { hours, minutes, seconds } = data.daily_time_goal;
 

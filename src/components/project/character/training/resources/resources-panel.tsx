@@ -1,7 +1,7 @@
 import { RefObject, useState } from "react";
 import { CharacterXPBarHandle } from "../../character-xp-bar";
 import ResourceBlock from "./resource-block";
-import { saveCharacterProgress } from "@/app/project/[projectId]/character/serverActions";
+import { addCharacterXp } from "@/app/project/[projectId]/character/serverActions";
 
 type ResourcesPanelProps = {
 
@@ -17,9 +17,13 @@ const ResourcesPanel = ( { project_id, projectResources, characterXP }: Resource
 
         if( xp < 1 || quantity < 1 || !characterXP.current ) return;
 
-        const { level, total_xp } = characterXP.current.handleXpGain( xp * quantity );
+        // Animate right away; the server derives the level from the stored XP
+        const plan = characterXP.current.playXpGain( xp * quantity );
 
-        await saveCharacterProgress( project_id, level, total_xp )
+        const saved = await addCharacterXp( project_id, xp * quantity );
+
+        // XP changed elsewhere meanwhile: snap to what the server has
+        if( saved.totalXp !== plan.after.totalXp ) characterXP.current?.setTotalXp( saved.totalXp );
 
     }
 

@@ -2,8 +2,9 @@
 
 import { Rive, useRive, useStateMachineInput } from "@rive-app/react-canvas";
 import { useAtom } from "jotai";
-import { RefObject, useEffect, useImperativeHandle, useState } from "react";
+import { RefObject, useEffect, useImperativeHandle } from "react";
 import { lvAtom } from "../project/character/character-xp-bar";
+import { DEFAULT_GROWTH_STEP, getGrowthStage } from "@/lib/character/level";
 
 interface RiveCharacterProps extends React.HTMLAttributes<HTMLDivElement> {
 
@@ -29,26 +30,12 @@ const STATE_MACHINE = "State Machine 1"
 // Suppress deprecation warnings from state machine of Rive
 Rive.suppressDeprecationWarnings = ["state-machine-inputs"]
 
-const RiveCharacter = ( { growth_step = {"1": 50, "5": 100, "10": 150, "25": 200, "45": 400, "50": 500}, ref, character_id, className = "", onRiveReady = () => {}, ...eventProps }: RiveCharacterProps ) => {
-
-    const [ step, setStep ] = useState(1);
+const RiveCharacter = ( { growth_step = DEFAULT_GROWTH_STEP, ref, character_id, className = "", onRiveReady = () => {}, ...eventProps }: RiveCharacterProps ) => {
 
     const [ level, _ ] = useAtom(lvAtom)
 
-    // SHOW RIV FILE WITH RESPECT TO CURRENT LEVEL THUS STEP
-    useEffect( () => {
-
-        let newStep = 1;
-
-        Object.entries( growth_step ).forEach( ( [ lv, _ ] ) => {
-
-            if( level >= Number(lv) ) newStep = Number(lv);
-
-        })
-
-        setStep( newStep );
-
-    }, [level, growth_step])
+    // SHOW RIV FILE OF THE CURRENT GROWTH STAGE
+    const step = getGrowthStage( level, growth_step ).stageLevel;
 
     const { rive, RiveComponent } = useRive({
         src: `/character/rive/${character_id}/${step}.riv`,

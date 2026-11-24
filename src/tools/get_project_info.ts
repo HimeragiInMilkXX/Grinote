@@ -1,16 +1,7 @@
 import { getProject } from '@/lib/projects';
 import { tool } from 'ai';
 import { z } from 'zod';
-
-const WEEKDAYS = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-];
+import { workDayNames } from '@/lib/projects/work-days';
 
 function contextValue(value: unknown): string | null {
     if (value instanceof Date) {
@@ -29,12 +20,8 @@ export const getProjectInformation = tool({
 
     const project: Project = await getProject( project_id );
 
-    // Project rows use Monday-first work days, as in the project dashboard.
-    const workDays = project?.work_days;
-    const hasValidSchedule =
-        Array.isArray(workDays) &&
-        workDays.length === WEEKDAYS.length &&
-        workDays.every((day) => typeof day === "boolean");
+    // work_days holds ISO weekday numbers (1 = Monday ... 7 = Sunday).
+    const workDays = Array.isArray( project?.work_days ) ? workDayNames( project.work_days ) : null;
 
     // Include planning context rather than the entire database row (IDs,
     // ownership, and character metadata are unnecessary for goal planning).
@@ -42,12 +29,10 @@ export const getProjectInformation = tool({
         name: contextValue(project?.name),
         description: contextValue(project?.description),
         final_goal: contextValue(project?.final_goal),
-        target_date: contextValue(project?.achieve_data_goal),
+        target_date: contextValue(project?.achieve_date_goal),
         created_at: contextValue(project?.created_at),
         daily_time_goal: contextValue(project?.daily_time_goal),
-        work_days: hasValidSchedule
-        ? WEEKDAYS.filter((_, index) => workDays[index])
-        : null,
+        work_days: workDays,
         streak_days:
         typeof project?.streak === "number" &&
         Number.isFinite(project.streak) &&

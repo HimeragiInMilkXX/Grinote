@@ -3,22 +3,33 @@
 import RiveCharacter, { RiveCharacterHandle } from "@/components/rive/rive-character";
 import { useCallback, useEffect, useRef } from "react";
 import CharacterXPBar, { CharacterXPBarHandle } from "./character-xp-bar";
-import { saveCharacterProgress } from "@/app/project/[projectId]/character/serverActions";
-import { redeemReward } from "@/app/project/[projectId]/task_complete/serverActions";
+import { markRewardShown } from "@/app/project/[projectId]/task_complete/serverActions";
 import { OnAirRecord } from "@/types/records";
 import { useTutorialStep } from "@/hooks/useTutorialStep";
 
-const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { record: OnAirRecord, project: Project, characterLevelChanges: CharacterLevelChanges }) => {
+type TaskCompleteCharacterProps = {
+
+    record: OnAirRecord;
+    project: Project;
+    /** Total XP the bar starts at. */
+    initTotalXp: number;
+    /** XP to animate on top of it (0 = show the final state, e.g. on a revisit). */
+    xpGained: number;
+
+}
+
+/**
+ * Plays the reward animation. The XP was already saved at completion, so nothing here writes XP;
+ * it only marks the animation as shown.
+ */
+const TaskCompleteCharacter = ( { record, project, initTotalXp, xpGained }: TaskCompleteCharacterProps ) => {
 
     // For onboarding
     const completeTutorialStep = useTutorialStep( project.id );
 
-
     const riveCharacterRef = useRef<RiveCharacterHandle>(null);
 
     const characterXPBarRef = useRef<CharacterXPBarHandle>(null);
-
-    const rewardDisplayed = useRef<boolean>(false);
 
     useEffect( () => {
 
@@ -28,47 +39,28 @@ const TaskCompleteCharacter = ( { record, project, characterLevelChanges }: { re
 
     const onRiveReady = useCallback( () => {
 
-        if( !riveCharacterRef.current  ) return;
-
-        riveCharacterRef.current.fireSuccess();
+        riveCharacterRef.current?.fireSuccess();
 
     }, [])
 
-    const processReward = useCallback( async () => {
-
-        if( rewardDisplayed.current || !characterXPBarRef.current ) return
-
-        rewardDisplayed.current = true;
-        const { level } = characterXPBarRef.current.handleXpGain(characterLevelChanges.xp_gained)
-
-        await saveCharacterProgress( project.id, level, characterLevelChanges.prev_xp + characterLevelChanges.xp_gained )
-
-    }, [])
-
-    const hasRedeemed = useRef<boolean>(false);
+    const played = useRef<boolean>(false);
 
     useEffect( () => {
 
-        if( hasRedeemed.current ) return;
+        if( played.current ) return;
+        played.current = true;
 
-        redeemReward( record.id, project.id, record.projects.character_xp )
+        if( xpGained > 0 ) characterXPBarRef.current?.playXpGain( xpGained );
 
-        hasRedeemed.current = true;
+        if( !record.reward_redeemed ) markRewardShown( record.id, project.id ).catch( () => {} );
 
-    }, [])
-
-    useEffect( () => {
-
-        if( !characterXPBarRef.current ) return;
-
-        processReward()
-        
     }, [])
 
     return (
         <div>
             <RiveCharacter growth_step={project.characters?.growth_step} ref={riveCharacterRef} character_id={project.characters?.id ?? 1} className="h-full" onRiveReady={onRiveReady}/>
-            <CharacterXPBar project_id={project.id} ref={characterXPBarRef} initLevel={characterLevelChanges.prev_lv} initTotalXp={characterLevelChanges.prev_xp} growth_step={characterLevelChanges.growth_step}/>
+            <CharacterXPBar ref={characterXPBarRef} initTotalXp={initTotalXp} growth_step={project.characters!.growth_step}
+                onLevelUp={() => riveCharacterRef.current?.fireSuccess()}/>
         </div>
     )
 }

@@ -5,8 +5,7 @@ import { useCallback, useState } from 'react';
 import ProgressPanelDayCard from './progress-panel-day-card';
 import { addWeeks, eachDayOfInterval, endOfWeek, startOfWeek } from 'date-fns';
 import ProgressPanelWeekStepper from './progress-panel-week-stepper';
-
-const WEEKDAYS = [ "月", "火", "水", "木", "金", "土", "日" ]
+import { WEEKDAYS } from '@/lib/projects/work-days';
 
 interface Props {
 
@@ -52,13 +51,13 @@ const ProjectDashboardProgressPanel = ( { project }: Props ) => {
         <section className='flex gap-1.5 flex-col items-center'>
             {
 
-                project.work_days.map( ( value, i ) => (
+                WEEKDAYS.map( ( day, i ) => (
                     <ProgressPanelDayCard
-                        key={i}
+                        key={day.value}
                         today={today}
                         date={weekDates[i]}
-                        label={WEEKDAYS[i]}
-                        isWorkDay={value}
+                        label={day.label}
+                        isWorkDay={project.work_days?.includes( day.value ) ?? false}
                         project_id={project.id}
                         startDate={project.created_at}
                     />

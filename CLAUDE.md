@@ -31,7 +31,7 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - `actions.ts` `createActionClient()`: for Server Actions that write or change auth. It writes cookies.
 - `client.ts`: browser client. `middleware.ts`: used by `proxy.ts`.
 - Auth guards: `redirectIfNotAuthenticated(path)` / `redirectIfAuthenticated` in `src/utils/`, called from layouts.
-- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records`, `resources`, `project_resources`, `profile`. Storage bucket: `materials_media`. There are no migrations or a schema in the repo (schema changes are applied through the Supabase MCP).
+- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
 
 ### Materials
 - `materials` has `is_favourite` and `pinned_at` (null = not pinned; pins are ordered by it). The pin limit is `MATERIAL_PIN_LIMIT` in `src/lib/materials/config.ts`, enforced in `setMaterialPinned`. `getProjectMaterials` excludes pinned rows; `getPinnedMaterials` lists them above the table regardless of search/filter.
@@ -42,10 +42,20 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - The root node can't hold materials: pickers hide it, the link server actions and `normalizeMaterialOps` (`rootIds`) reject it, and the `material_nodes` RLS `with check` refuses root nodes.
 - Bulk create: dropping files on the list sets `materialCreateQueueAtom`; `create/material-create-panel.tsx` queues them with `detectMaterialType` (`src/lib/materials/detect-type.ts`) and each item must be confirmed before 全て保存. List reloads are driven by `materialListVersionAtom`.
 
+### Project settings
+- `project/[projectId]/settings`: `ProjectSettingsPanel` (view mode → 編集 → 保存/キャンセル) and `ProjectDangerZone` (reset / delete) in `components/project/settings/`. Editable: `name`, `description`, `achieve_date_goal`, `daily_time_goal`, `work_days`, and `character_given_name` once. Never editable: `final_goal`, `character_id`, level/XP.
+- Rules live in `src/lib/projects/settings.ts` (`buildSettingsPatch`, unit-tested). It's used both as the form's resolver and in the `updateProjectSettings` server action. A changed target date must be today or later; an unchanged one isn't re-checked.
+- DB safety net: the `BEFORE UPDATE` trigger `projects_guard_settings` raises `project_locked_field` / `project_character_name_locked` / `project_active_task` (mapped to Japanese by `describeProjectSettingsError`). It stamps `character_name_changed_at` on the first rename. XP/level/tutorial updates pass through.
+- No settings change, reset or delete while the project has a `records` row in `active`/`paused`.
+- Reset is the RPC `reset_project_progress` (security invoker). It deletes non-root nodes (with records and material links), records and `project_resources`, and sets XP 0 / Lv 1 / streak 0. It keeps settings and materials.
+- `deleteProject` removes storage files under `materials/{id}/` and `materials/{id}/memo/` first (storage RLS needs the material rows), then deletes the project. Everything else cascades, including `materials`.
+- Unsaved edits: `projectSettingsDirtyAtom` (read by `project-navigation.tsx`) plus `beforeunload` via `useUnsavedSettings`.
+- `work_days` is `smallint[]` of ISO weekdays (1 = Mon … 7 = Sun), sorted and unique, with a CHECK constraint. Use the helpers in `src/lib/projects/work-days.ts` (`WEEKDAYS`, `normalizeWorkDays`, `isWorkDay`, `workDayNames`).
+
 ### Route conventions
 Each route folder keeps its own `serverActions.ts` (`"use server"`, Supabase access) and `clientActions.ts` (client-only helpers) next to `page.tsx`. Shared domain types in `src/types/*.ts` (e.g. `Project`, `Character`) are mostly **ambient globals**, not exported, so they're used without imports.
 
-Main routes: `(auth)/login|signup`, `dashboard` (project list), `project/new/{goal,details,character,complete}` (a wizard whose state lives in `new_project_atom`), and `project/[projectId]/{dashboard,tree,materials,onair,task_complete,character}`. `project/[projectId]/layout.tsx` loads the project, then mounts the navigation, the tutorial panel, and the assistant (`ChatProvider` + `AssistantDrawer`).
+Main routes: `(auth)/login|signup`, `dashboard` (project list), `project/new/{goal,details,character,complete}` (a wizard whose state lives in `new_project_atom`), and `project/[projectId]/{dashboard,tree,materials,onair,task_complete,character,settings}`. `project/[projectId]/layout.tsx` loads the project, then mounts the navigation, the tutorial panel, and the assistant (`ChatProvider` + `AssistantDrawer`).
 
 ### Goal tree
 - Client: `src/components/flow/` (`flow-client.tsx`, `task-node.tsx`). Nodes are `TaskNodeType = Node<{label, task: Task}, 'taskNode'>` (`src/types/flow.ts`). Auto-layout uses dagre (`tree/clientActions.ts`).
@@ -65,5 +75,20 @@ Main routes: `(auth)/login|signup`, `dashboard` (project list), `project/new/{go
 - Fallbacks: the route wraps the run in `createUIMessageStream` and writes the `finish` chunk itself with `metadata.finishReason` (and `autoRetried`). If a turn returns only reasoning (no text, no tool call), it silently re-runs once with a hidden nudge. Errors are logged and mapped to Japanese text by `describeChatError` (`src/lib/ai/errors.ts`). On the client, `getReplyIssue` (`src/lib/ai/reply-status.ts`) checks the last turn for error / stopped / interrupted (no `finishReason`) / empty / length / step-limit. `useStallDetector` flags a reply with no new chunk for 45 s. `components/assistant/reply-fallback.tsx` shows the card with 再試行 / 続きを生成 / 続ける / 停止して再試行.
 - The client sends `context` (`assistantPageContextAtom`: open material / on-air node) with every chat request; `parsePageContext` validates it and `generateSystemPrompt` adds it. The route stops after 8 steps.
 
+### Rewards / XP
+Full details are in `docs/reward-engine.md`, and the AI placeholder is covered in `docs/ai-review-integration.md`.
+- Task XP follows the Reward Engine v1.0 formula: `calculateTaskReward` in `src/lib/rewards/engine.ts`. All constants are in `src/lib/rewards/config.ts` (`REWARD_CONFIG`, `REWARD_FORMULA_VERSION`, `REWARD_DAY_TIMEZONE`, `LEVEL_XP_REQUIREMENT_SCALE`, `TASK_COMPLETION_RESOURCES`). The spec acceptance tests are in `engine.test.ts`.
+- XP is awarded once, on the server, at completion. `completeTask` → `awardTaskCompletion` (`src/lib/rewards/award-task.ts`) → RPC `complete_task_with_reward` writes the record, node progress, XP, level, streak and resources in one transaction. It's idempotent (an already completed record awards nothing), and an `xp_conflict` means the reward is recomputed. The task_complete page never writes XP. `markRewardShown` only sets `reward_redeemed` ("animation shown").
+- `records.reward_breakdown` (`TaskRewardBreakdown`, `src/lib/rewards/breakdown.ts`) snapshots the inputs, factors, config, and the XP/level before and after. `TaskRewardBreakdownCard` renders it. Never recompute past rewards.
+- Streak rules are in `src/lib/rewards/streaks.ts`. The project streak is work-day aware and saved to `projects.streak`. The task streak counts today's earlier completions and is reset by an abandoned task. Both use the Tokyo day.
+- `src/lib/rewards/ai-review.ts` is a placeholder that returns `null` (factor ×1, shown as 準備中). Never present a simulated score as an AI review.
+- Other XP gains (feeding) go through `addCharacterXp` → RPC `add_character_xp`. Never write `character_xp`/`character_level` directly from the client.
+
 ### Assets
-Character Rive files: `public/character/rive/<characterId>/<level>.riv` (levels 1/5/10/25/45/50), with thumbnails in `public/character/thumbnail/`. Level/XP logic is in `src/hooks/useCharacterLevel.ts` and `useLevel.tsx`.
+Character Rive files: `public/character/rive/<characterId>/<level>.riv` (levels 1/5/10/25/45/50), with thumbnails in `public/character/thumbnail/`. Level logic is in `src/lib/character/level.ts`, the single source for both server and client:
+- Total XP is authoritative, and `character_level` is a cache written by the server.
+- The curve is `growth_step × LEVEL_XP_REQUIREMENT_SCALE`.
+- `getGrowthStage` picks the `.riv` stage.
+- `planXpGain` gives the animation segments that `CharacterXPBar` plays (`onLevelUp` hook).
+
+`src/hooks/useCharacterLevel.ts` is a thin client state hook over it and saves nothing.
