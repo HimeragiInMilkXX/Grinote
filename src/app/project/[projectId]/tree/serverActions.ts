@@ -52,6 +52,17 @@ export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeTyp
 
     const supabase = await createActionClient();
 
+    // the canvas is read-only while a task runs or its report is pending (a stale tab must not
+    // delete or change the node of that record)
+    const { count: openRecords, error: openRecordsError } = await supabase
+        .from( "records" )
+        .select( "id", { count: "exact", head: true } )
+        .eq( "project_id", project_id )
+        .in( "status", [ "active", "paused", "reviewing" ] );
+
+    if( openRecordsError ) throw openRecordsError;
+    if( ( openRecords ?? 0 ) > 0 ) throw new Error( "行動中・レポート提出前は目標ツリーを保存できません" );
+
     const { data: previousRowsArray, error: previousNodesIdError } = await supabase.from('nodes').select('*').eq( 'project_id', project_id );
 
     if( previousNodesIdError ) throw previousNodesIdError;

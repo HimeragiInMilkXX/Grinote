@@ -838,7 +838,7 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
                 {/* Reminder of not editable during onair */}
                 { hasActiveTask && (
                     <FlowNotice>
-                        <p className='text-xl text-red-600 text-center'> 行動中は編集できない </p>
+                        <p className='text-xl text-red-600 text-center'> 行動中・レポート提出前は編集できない </p>
                         { graphEditRequest && <p className='text-xl text-red-600 text-center'> 生成された変更は行動後反映する予定 </p> }
                     </FlowNotice>
                 ) }

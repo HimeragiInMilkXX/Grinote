@@ -2,7 +2,7 @@ import AssistantDrawer from "@/components/assistant/assistant-drawer";
 import { Chat } from "@/components/assistant/chat";
 import ProjectNavigation from "@/components/navigation/project-navigation";
 import ProjectTutorialPanel from "@/components/tutorial/project/project-tutorial-panel";
-import { MODELS } from "@/lib/ai/models";
+import { getAvailableModels } from "@/lib/ai/provider";
 import { getProject } from "@/lib/projects";
 import { redirectIfNotAuthenticated } from "@/utils/redirectIfNotAuthenticated";
 import { redirect } from "next/navigation";
@@ -33,7 +33,7 @@ export default async function ProjectPageLayout({ children, params }: LayoutProp
             {children}
 			<ProjectTutorialPanel className="absolute right-0 top-0 m-6 w-[20vw] z-10" project_id={projectId} tutorial_progress={project.tutorial_progress}/>
 
-			<ChatProvider models={MODELS} >
+			<ChatProvider models={getAvailableModels()} >
 
 				<AssistantDrawer>
 					<Chat project_id={projectId} />

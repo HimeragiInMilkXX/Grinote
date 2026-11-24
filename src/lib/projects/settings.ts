@@ -168,7 +168,7 @@ export function buildSettingsPatch( current: ProjectSettingsSource, input: unkno
 }
 
 const DB_ERROR_MESSAGES: Record<string, string> = {
-    project_active_task: "タスク実行中は設定を変更できません。タスクを完了・中止してから変更してください。",
+    project_active_task: "タスク実行中（レポート未提出を含む）は設定を変更できません。タスクを完了してレポートを確定するか、中止してから変更してください。",
     project_character_name_locked: "キャラクターネームはすでに変更済みです。",
     project_locked_field: "この項目は変更できません。",
     project_not_found: "プロジェクトが見つかりません。",

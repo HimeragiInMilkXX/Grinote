@@ -13,11 +13,12 @@ import {
   type ToolSet,
 } from "ai"
 
+import { isModelAllowed } from "@/lib/ai/models"
 import {
-  DEFAULT_MODEL,
-  isModelAllowed,
-} from "@/lib/ai/models"
-import { getChatModel } from "@/lib/ai/provider"
+  getDefaultModelId,
+  getModelWithFallback,
+  isGoogleModel,
+} from "@/lib/ai/provider"
 import { describeChatError } from "@/lib/ai/errors"
 import {
   getTools,
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   }
 
   const model = (body as { model?: unknown })?.model
-  const modelId = typeof model === "string" ? model : DEFAULT_MODEL
+  const modelId = typeof model === "string" ? model : getDefaultModelId()
 
   const projectId = body.project_id;
 
@@ -77,21 +78,34 @@ export async function POST(req: Request) {
   const modelMessages = await convertToModelMessages(messages)
   const system = generateSystemPrompt(projectId, pageContext)
 
+  // Gemini falls back to the local models when it fails before answering;
+  // the model that actually answered goes into the finish metadata.
+  let answeredBy = modelId
+  const chatModel = getModelWithFallback(modelId, {
+    onModel: (id) => {
+      answeredBy = id
+    },
+  })
+
   const run = (input: ModelMessage[], steps: number) =>
     streamText({
-      model: getChatModel(modelId),
+      model: chatModel,
       messages: input,
       tools,
       stopWhen: isStepCount(steps),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       abortSignal: req.signal,
       system,
+      // Ignored by the local models.
+      providerOptions: isGoogleModel(modelId)
+        ? { google: { thinkingConfig: { includeThoughts: true } } }
+        : undefined,
     })
 
   // Log the real cause, send the user a short readable message.
   const onError = (error: unknown) => {
     console.error("[chat]", error)
-    return describeChatError(error, modelId)
+    return describeChatError(error, answeredBy)
   }
 
   // A reply after ask_user continues the last message, so count its parts.
@@ -200,7 +214,11 @@ export async function POST(req: Request) {
       writer.write({
         type: "finish",
         finishReason,
-        messageMetadata: { finishReason, autoRetried },
+        messageMetadata: {
+          finishReason,
+          autoRetried,
+          ...(answeredBy !== modelId ? { answeredBy } : {}),
+        },
       })
     },
   })

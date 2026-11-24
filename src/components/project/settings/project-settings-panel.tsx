@@ -172,7 +172,7 @@ const ProjectSettingsPanel = ( { project, hasActiveTask }: Props ) => {
                     <Alert>
                         <RadioTower/>
                         <AlertTitle> タスク実行中 </AlertTitle>
-                        <AlertDescription> タスク実行中は設定を変更できません。ライブタスクを完了または中止してから変更してください。 </AlertDescription>
+                        <AlertDescription> タスク実行中（レポート未提出を含む）は設定を変更できません。ライブタスクを完了してレポートを確定するか、中止してから変更してください。 </AlertDescription>
                     </Alert>
                 )}
 

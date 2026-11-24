@@ -9,7 +9,7 @@ Implements *Grinote Reward Engine — Implementation Specification v1.0*. Each c
 | `src/lib/rewards/config.ts` | Constants you can change (formula, timezone, level scale, completion resources) |
 | `src/lib/rewards/engine.ts` | `calculateTaskReward(input, config?)`: the pure formula, with validation |
 | `src/lib/rewards/streaks.ts` | Day keys in the reward timezone, `computeProjectStreak`, `computeTaskStreak` |
-| `src/lib/rewards/ai-review.ts` | `getAiReviewScore()`: **placeholder** that returns `null` (see `docs/ai-review-integration.md`) |
+| `src/lib/rewards/ai-review.ts` | `getAiReviewScore()`: the confirmed task report analysis score from `task_journals`, or `null` (see `docs/ai-review-integration.md`, `docs/journey-system.md`) |
 | `src/lib/rewards/breakdown.ts` | `TaskRewardBreakdown` snapshot type, `buildRewardBreakdown`, interval/ms → minutes |
 | `src/lib/rewards/award-task.ts` | Server only: gathers inputs from the DB, computes, calls the RPC, retries on `xp_conflict` |
 | `src/lib/character/level.ts` | Level curve, level state, growth stage, `planXpGain` (animation segments) |
@@ -69,13 +69,13 @@ The maximum is `round(50 × 1.60 × 1.10 × 1.05 × 1.15 × 1.50) = 159`. The en
 | Input | Source |
 |---|---|
 | `estimatedTime` | `nodes.time_limit` (interval) in minutes. The default `00:00:00` means no estimate, so the factor is 1 |
-| `actualTime` | Tracked `duration` (ms) in minutes. 0 means the factor is 1 |
+| `actualTime` | Tracked `duration` (ms, saved by `finishTask`) in minutes. 0 means the factor is 1 |
 | `projectStreak` | `computeProjectStreak` over completed `records` days (see rules) |
 | `taskStreak` | `computeTaskStreak` over today's completed/abandoned `records` |
-| `aiScore` | `getAiReviewScore()`: currently always `null`, so the factor is 1 |
+| `aiScore` | `getAiReviewScore()`: the effort score (0..100) of the analysed task report. `null` (factor 1) when the analysis failed and the user claimed without AI |
 | `growthStage` / `maxStage` | `getGrowthStage(level before this reward, growth_step)`: the index of the growth_step key. The default characters have keys 1/5/10/25/45/50, so stages run 0..5 and `maxStage` is 5 |
 
-Everything except the tracked duration is read from the DB, never from the client.
+Everything is read from the DB, never from the client, at confirmation time. The duration was saved when 完成 was pressed. Streak days use `records.ended_at` (when 完成 was pressed), not the confirmation time.
 
 ### Streak rules (provisional product rules)
 
@@ -93,12 +93,12 @@ The spec leaves these open. The rule ids are stored in the snapshot (`rules`), s
 
 ## Execution flow (atomic and idempotent)
 
-1. `onair-timer.tsx` calls the `completeTask(record_id, project_id, duration)` server action.
-2. `awardTaskCompletion` reads the record. If it's already `completed`, it returns without awarding anything. Otherwise it reads the project's XP, works out the level and growth stage **before** the award, computes the streaks and the reward, and runs `planXpGain` to get the new level.
+1. `onair-timer.tsx` calls the `finishTask(record_id, project_id, duration)` server action. The record becomes `reviewing` (duration and `ended_at` saved, no XP), and the user is sent to the task report (`docs/journey-system.md`).
+2. On 確認して経験値を受け取る, `confirmReport` calls `awardTaskCompletion`, which reads the record. If it's already `completed`, it returns without awarding anything. It must be `reviewing`, and its journal must be analysed (or failed, for the no-AI claim). Otherwise it reads the project's XP, works out the level and growth stage **before** the award, computes the streaks and the reward, and runs `planXpGain` to get the new level.
 3. The RPC `complete_task_with_reward` runs in one transaction (security invoker, so RLS applies):
-   1. It locks the record. An already completed record returns `{already_completed: true}`, which makes retries safe.
+   1. It locks the record. An already completed record returns `{already_completed: true}`, which makes retries safe. Otherwise it needs `reviewing` and a journal that is `analyzed` or `failed` (`journal_required`), whose `ai_score` matches the snapshot.
    2. It locks the project. It raises `xp_conflict` if `character_xp` is no longer the XP the reward was computed from. The app then recomputes, up to 3 attempts. This keeps "stage read before increment" true even when someone feeds the character at the same time.
-   3. It writes the record (status, duration, `xp_change`, `reward_breakdown`, `formula_version`, `resource_gained`) and the node progress (loop repetitions use DB values). It adds the XP, sets `character_level` and `streak`, and adds the resources.
+   3. It writes the record (status, duration, `xp_change`, `reward_breakdown`, `formula_version`, `resource_gained`) and the node progress (loop repetitions use DB values). It sets `completed_at = ended_at` and confirms the journal (`confirmed` / `confirmed_without_ai`). It adds the XP, sets `character_level` and `streak`, and adds the resources.
 4. Redirect to `task_complete?recordId=…`. That page **doesn't** write any XP. It animates `before → after` from the snapshot and calls `markRewardShown`, which sets `reward_redeemed = true`, meaning "animation shown". On a revisit it shows the final state and the breakdown without animating.
 
 Feeding resources (`resources-panel.tsx`) uses `addCharacterXp` → RPC `add_character_xp`, with the same `xp_conflict` check. The level is always derived on the server from the total XP.
@@ -120,7 +120,7 @@ Feeding resources (`resources-panel.tsx`) uses `addCharacterXp` → RPC `add_cha
 }
 ```
 
-Use the stored `awardedXp` / `xp_change` for displays and the future journey timeline. Never recompute it. Records from before v1.0 have no breakdown, and the page shows a "旧方式" note for them.
+Use the stored `awardedXp` / `xp_change` for displays and the journey timeline. Never recompute it. Records from before v1.0 have no breakdown, and the page shows a "旧方式" note for them.
 
 ## Level curve and growth stages (`src/lib/character/level.ts`)
 
@@ -137,4 +137,4 @@ Balancing level/XP pacing is a separate task (spec rule 10). The growth-stage bo
 - **Tune a value:** edit `REWARD_CONFIG` and run `npm test`. The acceptance tests use the defaults, so update them if you change a default on purpose.
 - **Change the formula:** edit `engine.ts`, bump `REWARD_FORMULA_VERSION`, update this doc and the tests.
 - **Change a streak rule:** edit `streaks.ts`, change the rule id constant, and update this doc.
-- **Add the real AI review:** follow `docs/ai-review-integration.md`.
+- **AI review:** see `docs/ai-review-integration.md` and `docs/journey-system.md`.

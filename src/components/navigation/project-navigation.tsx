@@ -1,7 +1,7 @@
 "use client";
 
-import { getActiveTask } from "@/app/project/[projectId]/onair/serverActions";
-import { House, Network, RadioTower, Cat, FolderBookmark, Settings } from "lucide-react";
+import { getActiveTask, getPendingReport } from "@/app/project/[projectId]/onair/serverActions";
+import { House, Network, RadioTower, Cat, FolderBookmark, Settings, BookOpenText } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -38,6 +38,11 @@ const ProjectNavigation = ( { projectId }: Props ) => {
             label: "ライブタスク",
         },
         {
+            href: `/project/${projectId}/journey`,
+            icon: BookOpenText,
+            label: "ジャーニー",
+        },
+        {
             href: `/project/${projectId}/materials`,
             icon: FolderBookmark,
             label: "マテリアル",
@@ -58,7 +63,10 @@ const ProjectNavigation = ( { projectId }: Props ) => {
 
     useEffect( () => {
 
-        getActiveTask( projectId ).then( res => setHasActiveTask( res != null ) );
+        // a finished task with a pending report also shows the dot (on-air leads to the report)
+        Promise.all( [ getActiveTask( projectId ), getPendingReport( projectId ) ] )
+            .then( ( [ active, pending ] ) => setHasActiveTask( active != null || pending != null ) )
+            .catch( () => setHasActiveTask( false ) );
 
     }, [projectId, pathname])
 

@@ -8,12 +8,15 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval:tree": "vitest run --config vitest.eval.config.ts"
+    "eval:tree": "vitest run --config vitest.eval.config.ts eval-tree-agent",
+    "eval:journey": "vitest run --config vitest.eval.config.ts eval-journey"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.65",
+    "@ai-sdk/google": "4.0.82",
     "@ai-sdk/openai": "4.0.78",
     "@ai-sdk/openai-compatible": "3.0.57",
+    "@ai-sdk/provider": "4.0.18",
     "@ai-sdk/react": "4.0.121",
     "@base-ui/react": "^1.7.0",
     "@dagrejs/dagre": "^3.1.1",

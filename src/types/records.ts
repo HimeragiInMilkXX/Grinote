@@ -10,7 +10,10 @@ export type OnAirRecord = {
     completed_at: string;
     updated_at: string;
     duration: number;
-    status: "active" | "completed" | "abandoned" | "paused";
+    /** reviewing = timer stopped with 完成, task report pending, no XP yet (journey system) */
+    status: "active" | "completed" | "abandoned" | "paused" | "reviewing";
+    /** when 完成 was pressed (null before 4.0) */
+    ended_at?: string | null;
     xp_change?: number;
     nodes?: TableTaskRow;
     projects: Project;

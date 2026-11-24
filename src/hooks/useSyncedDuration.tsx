@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react";
+import type { OnAirRecord } from "@/types/records";
 
-export function useSyncedDuration( updated_at: Date | string, duration: number, status: "paused" | "active" | "abandoned" | "completed" ) {
+export function useSyncedDuration( updated_at: Date | string, duration: number, status: OnAirRecord[ "status" ] ) {
 
     const [ isRunning, setIsRunning ] = useState( status === "active" );
 

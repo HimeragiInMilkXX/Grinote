@@ -13,7 +13,10 @@ type ErrorLike = {
 
 export const CHAT_ERROR_MESSAGES = {
   connection:
-    "AIサーバーに接続できません。Ollamaが起動しているか確認してください。",
+    "AIサーバーに接続できません。ネットワーク接続やOllamaが起動しているか確認してください。",
+  apiKey:
+    "Gemini APIキーが無効か未設定です。.env.local の GEMINI_API_KEY を確認してください。",
+  quota: "Geminiの利用上限に達しました。時間をおいて再試行するか、ローカルモデルを選んでください。",
   context: "会話が長すぎます。新しいチャットを始めてください。",
   timeout: "応答がタイムアウトしました。もう一度お試しください。",
   fallback: "エラーが発生しました。もう一度お試しください。",
@@ -48,6 +51,23 @@ export function describeChatError(error: unknown, modelId: string): string {
     )
   ) {
     return CHAT_ERROR_MESSAGES.context
+  }
+
+  if (
+    statusCodes.includes(401) ||
+    statusCodes.includes(403) ||
+    /api key not valid|api_key_invalid|invalid api key|api key (is )?missing|permission_denied|loadapikeyerror/.test(
+      text
+    )
+  ) {
+    return CHAT_ERROR_MESSAGES.apiKey
+  }
+
+  if (
+    statusCodes.includes(429) ||
+    /resource_exhausted|quota|rate limit/.test(text)
+  ) {
+    return CHAT_ERROR_MESSAGES.quota
   }
 
   if (

@@ -135,3 +135,65 @@ export function computeTaskStreak( todayEvents: readonly TaskStreakEvent[] ): nu
     return streak;
 
 }
+
+export interface StreakHistoryInput {
+    /** Day keys with at least one completed task. */
+    completionDayKeys: Iterable<string>;
+    todayKey: string;
+    /** ISO weekdays the user plans to work. Empty = every day is a work day. */
+    workDays: readonly number[];
+    maxLookbackDays?: number;
+}
+
+const isWorkDayKey = ( workDays: readonly number[], key: string ) => workDays.length === 0 || workDays.includes( isoWeekdayOfKey( key ) );
+
+/**
+ * The streak that is alive right now (journey page), with the same work-day rule as
+ * computeProjectStreak. Today counts if it has a completion; a work day still in progress
+ * (today without a completion yet) does not break the streak.
+ */
+export function computeCurrentStreak( { completionDayKeys, todayKey, workDays, maxLookbackDays = 400 }: StreakHistoryInput ): number {
+
+    const done = new Set( completionDayKeys );
+
+    let streak = done.has( todayKey ) ? 1 : 0;
+    let cursor = addDaysToKey( todayKey, -1 );
+
+    for( let i = 0; i < maxLookbackDays; i++, cursor = addDaysToKey( cursor, -1 ) ) {
+
+        if( done.has( cursor ) ) streak++;
+        else if( isWorkDayKey( workDays, cursor ) ) break;
+
+    }
+
+    return streak;
+
+}
+
+/**
+ * The longest streak ever reached, walking forward from the first completion to today with the
+ * same rule (a completion adds 1, a missed work day resets, a free day without work is skipped).
+ */
+export function computeLongestStreak( { completionDayKeys, todayKey, workDays }: StreakHistoryInput ): number {
+
+    const done = new Set( completionDayKeys );
+    if( done.size === 0 ) return 0;
+
+    const first = [ ...done ].sort()[0];
+
+    let best = 0;
+    let run = 0;
+
+    for( let cursor = first; cursor <= todayKey; cursor = addDaysToKey( cursor, 1 ) ) {
+
+        if( done.has( cursor ) ) {
+            run++;
+            if( run > best ) best = run;
+        }
+        else if( cursor !== todayKey && isWorkDayKey( workDays, cursor ) ) run = 0;
+
+    }
+
+    return best;
+
+}

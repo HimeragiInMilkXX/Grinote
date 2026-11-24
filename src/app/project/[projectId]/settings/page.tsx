@@ -1,7 +1,7 @@
 import ProjectSettingsPanel from '@/components/project/settings/project-settings-panel';
 import ProjectDangerZone from '@/components/project/settings/project-danger-zone';
 import { getProject } from '@/lib/projects';
-import { getActiveTask } from '../onair/serverActions';
+import { getActiveTask, getPendingReport } from '../onair/serverActions';
 
 const ProjectPageSettings = async ( { params }: PageProps<"/project/[projectId]/settings"> ) => {
 
@@ -9,7 +9,8 @@ const ProjectPageSettings = async ( { params }: PageProps<"/project/[projectId]/
 
     const project: Project = await getProject( projectId );
 
-    const hasActiveTask = ( await getActiveTask( projectId ) ) != null;
+    // a finished task whose report is pending still counts as running
+    const hasActiveTask = ( await getActiveTask( projectId ) ) != null || ( await getPendingReport( projectId ) ) != null;
 
     return (
         // cards must not shrink inside the fixed-height scroll column

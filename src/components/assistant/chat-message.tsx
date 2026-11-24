@@ -5,6 +5,7 @@ import {
   type ChatUIMessage,
   type TextMessagePart,
 } from "@/tools"
+import { getModelInfo } from "@/lib/ai/models"
 import { MessageActions } from "@/components/assistant/message-actions"
 import { AskUserPart } from "@/components/assistant/parts/ask-user-part"
 import { GithubRepoPart } from "@/components/assistant/parts/github-repo-part"
@@ -19,13 +20,14 @@ import { ProposeGoalTreePart } from "./parts/propose-goal-tree-part"
 import { GetProjectInfoPart } from "./parts/get-project-info-part"
 import { GetGraphInfoPart } from "./parts/get-graph-info-part"
 import { MaterialReadPart } from "./parts/material-read-part"
+import { JourneyReadPart } from "./parts/journey-read-part"
 import { ProposeMaterialsPart } from "./parts/propose-materials-part"
 import { DraftMemoPart } from "./parts/draft-memo-part"
 
 type StepPart = Extract<
   ChatMessagePart,
   {
-    type: "reasoning" | "tool-github_repo" | "tool-ask_user" | "tool-web_search" | "tool-propose_goal_tree" | "tool-get_project_info" | "tool-get_graph_info" | "tool-list_materials" | "tool-read_material" | "tool-propose_materials" | "tool-draft_memo"
+    type: "reasoning" | "tool-github_repo" | "tool-ask_user" | "tool-web_search" | "tool-propose_goal_tree" | "tool-get_project_info" | "tool-get_graph_info" | "tool-list_materials" | "tool-read_material" | "tool-propose_materials" | "tool-draft_memo" | "tool-list_journey" | "tool-read_journey_entry"
   }
 >
 
@@ -135,6 +137,15 @@ export function ChatMessage({
                         isStreaming={isStreaming}
                       />
                     )
+                  case "tool-list_journey":
+                  case "tool-read_journey_entry":
+                    return (
+                      <JourneyReadPart
+                        key={part.toolCallId}
+                        part={part}
+                        isStreaming={isStreaming}
+                      />
+                    )
                   case "tool-propose_materials":
                     return (
                       <ProposeMaterialsPart
@@ -157,6 +168,14 @@ export function ChatMessage({
           ) : (
             <TextPart key={index} part={block} />
           )
+        )}
+        {!isStreaming && message.metadata?.answeredBy && (
+          <p className="text-xs text-muted-foreground">
+            選択したモデルが使えなかったため、
+            {getModelInfo(message.metadata.answeredBy)?.name ??
+              message.metadata.answeredBy}
+            （予備）で回答しました。
+          </p>
         )}
         {!isStreaming && <SourcesPart parts={message.parts} />}
         {!isStreaming && text && (
@@ -210,7 +229,9 @@ function isStepPart(part: ChatMessagePart): part is StepPart {
     part.type === "tool-list_materials" ||
     part.type === "tool-read_material" ||
     part.type === "tool-propose_materials" ||
-    part.type === "tool-draft_memo"
+    part.type === "tool-draft_memo" ||
+    part.type === "tool-list_journey" ||
+    part.type === "tool-read_journey_entry"
   )
 }
 

@@ -3,6 +3,7 @@
 import { OnAirRecord } from "@/types/records";
 import { createClient, requireUser } from "@/utils/supabase/server"
 import { createActionClient } from "@/utils/supabase/actions";
+import { redirect } from "next/navigation";
 
 export const getRecord = async ( record_id: number, project_id: string ): Promise<OnAirRecord> => {
 
@@ -13,6 +14,9 @@ export const getRecord = async ( record_id: number, project_id: string ): Promis
     const { data: record, error } = await supabase.from("records").select( "*, nodes ( * ), projects ( *, characters ( * ) )" ).eq( "id", record_id ).eq( "project_id", project_id ).eq( "user_id", user.id ).single();
 
     if( error ) throw error.message;
+
+    // the report still has to be confirmed before there is anything to show here
+    if( record.status === "reviewing" ) redirect( `/project/${project_id}/task_report?recordId=${record_id}` );
 
     if( record.status !== 'completed' ) throw new Error( "Task is not completed yet" );
 

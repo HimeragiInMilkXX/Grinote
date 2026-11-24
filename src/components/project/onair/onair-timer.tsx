@@ -1,6 +1,6 @@
 "use client"
 
-import { abandonTask, completeTask, pauseTask, resumeTask } from "@/app/project/[projectId]/onair/serverActions";
+import { abandonTask, finishTask, pauseTask, resumeTask } from "@/app/project/[projectId]/onair/serverActions";
 import { useTutorialStep } from "@/hooks/useTutorialStep";
 import { Button } from "@/components/ui/button";
 import { useSyncedDuration } from "@/hooks/useSyncedDuration"
@@ -41,7 +41,7 @@ const OnAirTimer = ( { activeTask }: Props ) => {
 
         pauseTimer();
         setEnded( true )
-        await completeTask( activeTask.id, activeTask.project_id, elapsedMs );
+        await finishTask( activeTask.id, activeTask.project_id, elapsedMs );
 
     }
 

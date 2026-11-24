@@ -18,32 +18,44 @@ export interface AwardTaskResult {
 }
 
 /**
- * Completes an active/paused record and awards its XP in one DB transaction
- * (`complete_task_with_reward`). Safe to retry: a record that is already completed awards nothing.
- * Inputs are read from the DB (node estimate, project XP/streak data), never from the client,
- * except the tracked duration.
+ * Completes a record whose report was reviewed ('reviewing', journal analysed or failed) and awards
+ * its XP in one DB transaction (`complete_task_with_reward`, which also confirms the journal).
+ * Safe to retry: a record that is already completed awards nothing.
+ * Every input is read from the DB (tracked duration saved by finishTask, node estimate, AI score,
+ * project XP/streak data). Streak days use the moment 完成 was pressed (`ended_at`), not the
+ * moment the report was confirmed.
  */
-export async function awardTaskCompletion( supabase: SupabaseClient, args: { recordId: number; projectId: string; userId: string; durationMs: number } ): Promise<AwardTaskResult> {
+export async function awardTaskCompletion( supabase: SupabaseClient, args: { recordId: number; projectId: string; userId: string } ): Promise<AwardTaskResult> {
 
     const { recordId, projectId, userId } = args;
-    const durationMs = Math.max( 0, Math.round( Number.isFinite( args.durationMs ) ? args.durationMs : 0 ) );
 
     const { data: record, error: recordError } = await supabase
         .from( "records" )
-        .select( "id, status, node_id, xp_change, nodes ( time_limit )" )
+        .select( "id, status, node_id, xp_change, duration, ended_at, nodes ( time_limit )" )
         .eq( "id", recordId ).eq( "project_id", projectId ).eq( "user_id", userId )
         .single();
 
     if( recordError ) throw new Error( recordError.message );
 
     if( record.status === "completed" ) return { recordId, alreadyCompleted: true, xp: record.xp_change ?? 0 };
-    if( record.status !== "active" && record.status !== "paused" ) throw new Error( "This task is not in progress" );
+    if( record.status !== "reviewing" ) throw new Error( "This task is not waiting for its report" );
+
+    const rawDuration = Number( record.duration );
+    const durationMs = Math.max( 0, Math.round( Number.isFinite( rawDuration ) ? rawDuration : 0 ) );
 
     const node = record.nodes as unknown as { time_limit: string | null } | null;
 
+    // the estimate snapshot taken at 完成 (a tree edit while the report is pending can't change the reward)
+    const { data: journal, error: journalError } = await supabase.from( "task_journals" ).select( "estimated_minutes" ).eq( "record_id", recordId ).maybeSingle();
+    if( journalError ) throw new Error( journalError.message );
+    const snapshotMinutes = journal?.estimated_minutes != null ? Number( journal.estimated_minutes ) : NaN;
+    const estimatedMinutes = Number.isFinite( snapshotMinutes ) && snapshotMinutes >= 0 ? snapshotMinutes : intervalToMinutes( node?.time_limit );
+
     // -- streak inputs (they don't depend on XP, so they're read once) --
     const now = new Date();
-    const todayKey = dateKeyInZone( now, REWARD_DAY_TIMEZONE );
+    const endedAt = record.ended_at ? new Date( record.ended_at ) : null;
+    const dayRef = endedAt && Number.isFinite( endedAt.getTime() ) && endedAt <= now ? endedAt : now;
+    const todayKey = dateKeyInZone( dayRef, REWARD_DAY_TIMEZONE );
     const todayStart = startOfDayKey( todayKey, REWARD_DAY_TIMEZONE ).toISOString();
 
     const { data: todayRows, error: todayError } = await supabase
@@ -61,7 +73,7 @@ export async function awardTaskCompletion( supabase: SupabaseClient, args: { rec
             .map( r => ( { status: r.status as "completed" | "abandoned", at: r.completed_at ?? r.updated_at } ) )
     );
 
-    const aiReview = await getAiReviewScore( { projectId, recordId, nodeId: record.node_id } );
+    const aiReview = await getAiReviewScore( { supabase, projectId, recordId } );
 
     for( let attempt = 1; ; attempt++ ) {
 
@@ -101,7 +113,7 @@ export async function awardTaskCompletion( supabase: SupabaseClient, args: { rec
         const stage = getGrowthStage( before.level, growthStep );
 
         const inputs = {
-            estimatedMinutes: intervalToMinutes( node?.time_limit ),
+            estimatedMinutes,
             actualMinutes: msToMinutes( durationMs ),
             projectStreak,
             taskStreak,

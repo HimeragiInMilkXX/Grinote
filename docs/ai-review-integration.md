@@ -1,69 +1,41 @@
-# Replacing the AI review placeholder
+# AI review (aiScore)
 
-`src/lib/rewards/ai-review.ts` currently returns `{ score: null, source: "none" }` for every task. This keeps the AI factor at exactly 1, and the breakdown shows 「AIレビューは準備中です（ボーナスなし）」. Follow these steps once the real AI review exists. Read `docs/reward-engine.md` first.
+Since MVP 4.0, `src/lib/rewards/ai-review.ts` is no longer a placeholder. The score comes from the **task report analysis** of the journey system (`docs/journey-system.md`): the AI rates the user's reflections for effort (relevance 30 + attempt 40 + seriousness 30 = 0..100), the user confirms it, and `awardTaskCompletion` reads it from `task_journals`.
 
-## 1. Keep the contract
+## Contract
 
-`getAiReviewScore(ctx)` must keep returning `AiReviewResult`:
+`getAiReviewScore({ supabase, projectId, recordId })` returns `AiReviewResult`:
 
 ```ts
 interface AiReviewResult {
-  score: number | null;       // 0..REWARD_CONFIG.aiScoreMax, or null = no review
-  source: "none" | "ai";      // add "manual" etc. only together with the UI change in step 5
+  score: number | null;        // 0..REWARD_CONFIG.aiScoreMax, or null = no review
+  source: "none" | "ai";
+  model?: string;              // model that analysed the report
+  evidenceSummary?: string;    // the analysis conclusion, max 200 chars (no raw report or evidence)
+  reviewedAt?: string;         // ISO timestamp of the analysis
+  verification?: "self_report" | "evidence";
 }
 ```
 
-You can extend it with optional fields. They get stored in the snapshot as-is:
+- `journalToAiReview` (pure, unit-tested in `ai-review.test.ts`) gives `source: "ai"` only for a journal with `analysis_status = 'analyzed'`, an `ai_score`, and a valid `analysis`. Everything else is `{ score: null, source: "none" }`.
+- The result is stored at `reward_breakdown.inputs.ai`. The formula version stays `"1.0"`; past records are never recomputed. Records before 4.0 keep `source: "none"`.
 
-```ts
-  model?: string;             // e.g. the model id from src/lib/ai/models.ts
-  evidenceSummary?: string;   // short text shown to the user (no raw material contents)
-  reviewedAt?: string;        // ISO timestamp
-```
+## Rules (still in force)
 
-`ctx` currently holds `{ projectId, recordId, nodeId }`. Load anything else you need inside the function: the node's `task_name` and `description`, materials linked through `material_nodes`, memos (`materials.content`), and the duration. Keep `ai-review.ts` free of `"use server"`. It's called from `src/lib/rewards/award-task.ts`, which already runs on the server.
+- **A score not produced by a real review never looks verified.** When the analysis fails, the user can claim XP without AI: `aiScore = null` (×1.00), shown as AI分析なし.
+- **Completion never gets stuck on the AI.**
+  - The analysis runs before confirmation, on the report page.
+  - It uses a 120 s timeout and one retry for bad output, and it never throws (`runJourneyAnalysis`).
+  - After a failure the no-AI claim is available.
+- The score is clamped in code. The model never gives the total; `normalizeAnalysis` sums the clamped parts.
+- It runs at `temperature: 0` with a fixed rubric prompt kept with the code (`src/lib/journey/prompt.ts`).
+- The RPC `complete_task_with_reward` refuses a breakdown whose `inputs.ai.score` differs from the journal's `ai_score`.
 
-## 2. Hard rules (spec rule 5)
+## UI
 
-- **A score that wasn't produced by a real review must never look verified.** Simulated, dummy and fallback values must return `score: null` (or `source` stays `"none"`), so the AI factor stays 1.
-- Clamp and validate. The engine already clamps to `0..aiScoreMax` and rejects `NaN` and `Infinity`, but return `null` instead of throwing when the model output is unusable.
-- **Never block or fail the completion.** Wrap the call in a timeout (e.g. 10–15 s) and in `try/catch`, and fall back to `{ score: null, source: "none" }`. Completing a task must work when Ollama or the provider is down.
-- The review must be deterministic enough to be fair. Use `temperature: 0` and a fixed rubric prompt, and keep the prompt with the code.
+- `task-reward-breakdown.tsx` shows `AIレビュー スコア n / 100（自己申告・AIによる評価）` with the conclusion.
+- `JourneyAnalysisView` shows the rubric parts with their reasons and a note that the score is an AI estimate from self-reported reflections.
 
-## 3. Where it runs
+## Privacy
 
-`awardTaskCompletion` calls `getAiReviewScore` **once**, before the XP retry loop. The score doesn't depend on XP, so an `xp_conflict` retry doesn't call the AI again. If the review is slow, you can instead:
-
-- (a) keep it inline with a short timeout, or
-- (b) later, add a separate "review bonus" record that is awarded after completion.
-
-Option (b) needs its own RPC, its own idempotency key, and a new formula version. Don't recompute the original record.
-
-## 4. Snapshot and versioning
-
-- The result is stored at `reward_breakdown.inputs.ai`. Nothing else is needed for the history to keep the score.
-- Plugging in a real score **doesn't** change the formula, so `REWARD_FORMULA_VERSION` can stay `"1.0"`. Bump it only if the way the score enters the formula changes (e.g. a different curve).
-- Past records are never recomputed (spec rule 8). Old completions keep their `ai.source = "none"`.
-
-## 5. UI
-
-In `src/components/project/task-complete/task-reward-breakdown.tsx`, the `ai` row already shows `AIレビュー スコア {score} / {aiScoreMax}` when `source === "ai"`.
-
-- Show `evidenceSummary` under that row if you add it.
-- Add a short label that the score is AI-generated, and a link to explain it if needed.
-- If you add new `source` values, give each one an honest label (e.g. 手動評価). Never show a simulated value as an AI review.
-
-## 6. Privacy and the university's rules
-
-The review sends task names, memos and material text to the AI provider (`AI_BASE_URL`). The default is local Ollama. A hosted provider means data leaves the machine.
-
-- Send only what the rubric needs, and avoid personal data where you can.
-- Don't send uploaded files unless that's intended. `read_material` doesn't read them either.
-- Before turning on an external provider, check the university's latest rules on external AI processing and on sending student data. Even if you only store a summary, the original text is sent while it's processed.
-
-## 7. Tests to add
-
-- `ai-review.test.ts`: maps model output to a score, clamps out-of-range values, returns `null` on unparseable output and on timeout, and never throws.
-- `engine.test.ts` already covers `aiScore` 0 / null / 100 / over the max.
-- An integration check: complete a task with the provider stopped. It must still complete and show 準備中.
-- Update the docs: this file, `docs/reward-engine.md` (the `aiScore` source row), and `CLAUDE.md`.
+The analysis sends the reflections, the task, the project goal and the last 5 AI summaries to Gemini (Google) by default when `GEMINI_API_KEY` is set, or to `AI_BASE_URL` (local Ollama) when it is not or Gemini fails. Check the university's latest rules before using an external provider; the original text is sent during processing even if only the summary is shown later.

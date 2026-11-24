@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getActiveTask, startTask } from "./serverActions";
+import { getActiveTask, getPendingReport, startTask } from "./serverActions";
 import { OnAirRecord } from "@/types/records";
 import OnAirTimer from "@/components/project/onair/onair-timer";
 import OnAirCharacter from "@/components/project/character/onair-character";
@@ -16,6 +16,10 @@ const ProjectPageOnAir = async ( { searchParams, params }: PageProps<"/project/[
     const nodeId = typeof query.nodeId === "string" ? query.nodeId : undefined;
 
     const { projectId } = await params;
+
+    // a finished task waits for its report before anything else can start
+    const pendingReport = await getPendingReport( projectId );
+    if( pendingReport ) redirect( `/project/${projectId}/task_report?recordId=${pendingReport.id}` );
 
     let activeTask: OnAirRecord | null = await getActiveTask( projectId );
     const project: Project = await getProject( projectId );

@@ -20,7 +20,7 @@ async function hasActiveTask( supabase: SupabaseClient, project_id: string ) {
         .from( "records" )
         .select( "id", { count: "exact", head: true } )
         .eq( "project_id", project_id )
-        .in( "status", [ "active", "paused" ] );
+        .in( "status", [ "active", "paused", "reviewing" ] );
 
     if( error ) throw error.message;
 

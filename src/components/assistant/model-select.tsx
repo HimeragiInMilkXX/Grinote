@@ -9,6 +9,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -27,6 +28,15 @@ export function ModelSelect({
     [models]
   )
 
+  // One labelled group per `group` (クラウド / ローカル（予備）), in list order.
+  const groups = React.useMemo(() => {
+    const byGroup = new Map<string, GatewayModel[]>()
+    for (const model of models) {
+      byGroup.set(model.group, [...(byGroup.get(model.group) ?? []), model])
+    }
+    return [...byGroup]
+  }, [models])
+
   return (
     <Select
       items={items}
@@ -42,13 +52,16 @@ export function ModelSelect({
         alignItemWithTrigger={false}
         render={(props) => <AssistantPopup {...props} />}
       >
-        <SelectGroup>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
+        {groups.map(([group, groupModels]) => (
+          <SelectGroup key={group}>
+            {groups.length > 1 && <SelectLabel>{group}</SelectLabel>}
+            {groupModels.map((model) => (
+              <SelectItem key={model.id} value={model.id}>
+                {model.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
       </SelectContent>
     </Select>
   )

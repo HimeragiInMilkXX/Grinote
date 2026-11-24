@@ -1,26 +1,24 @@
 import ProjectDashboardProgressPanel from '@/components/project/dashboard/project-dashboard-progress-panel';
-import ProjectDashboardTaskRecordDialog from '@/components/project/dashboard/project-dashboard-task-record-dialog';
+import ProjectDashboardJourneyLink from '@/components/project/dashboard/project-dashboard-journey-link';
 import { getProject } from '@/lib/projects';
 import { OnAirRecord } from '@/types/records';
-import { getRecords } from './serverActions';
 import ProjectDashboardCharacter from '@/components/project/character/project-dashboard-character';
-import { getActiveTask } from '../onair/serverActions';
+import { getActiveTask, getPendingReport } from '../onair/serverActions';
 
 const ProjectPageDashboard = async ( { params }: PageProps<"/project/[projectId]/dashboard"> ) => {
 
     const { projectId } = await params;
 
     const project: Project = await getProject( projectId );
-    const records: OnAirRecord[] = await getRecords( projectId );
 
-    const activeTask: OnAirRecord | null = await getActiveTask( projectId );
+    const [ activeTask, pendingReport ]: [ OnAirRecord | null, { id: number } | null ] = await Promise.all( [ getActiveTask( projectId ), getPendingReport( projectId ) ] );
 
     return (
         <div className='flex gap-3'>
             <ProjectDashboardCharacter activeTask={activeTask} project={project}/>
             <div className="flex flex-col gap-3">
                 <ProjectDashboardProgressPanel project={project}/>
-                <ProjectDashboardTaskRecordDialog records={records}/>
+                <ProjectDashboardJourneyLink projectId={projectId} pendingReportId={pendingReport?.id ?? null}/>
             </div>
         </div>
     )

@@ -1,5 +1,5 @@
 /**
- * Tree-edit eval against local Ollama models.
+ * Tree-edit eval against the chat models (local Ollama, plus Gemini when GEMINI_API_KEY is set).
  *
  *   npm run eval:tree                       # all models in src/lib/ai/models.ts
  *   EVAL_MODELS=gemma4:12b npm run eval:tree
@@ -171,7 +171,8 @@ async function runScenario( modelId: string, prompt: string ): Promise<RunResult
 }
 
 const { MODELS } = await import( "@/lib/ai/models" );
-const models = process.env.EVAL_MODELS ? process.env.EVAL_MODELS.split( "," ) : MODELS.map( m => m.id );
+// Gemini needs GEMINI_API_KEY; without it only the local models run.
+const models = process.env.EVAL_MODELS ? process.env.EVAL_MODELS.split( "," ) : MODELS.filter( m => m.provider !== "google" || process.env.GEMINI_API_KEY?.trim() ).map( m => m.id );
 
 const report: Record<string, unknown>[] = [];
 

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { TaskRewardBreakdown } from "@/lib/rewards/breakdown";
+import { VERIFICATION_LABELS } from "@/lib/journey/journal";
 
 type Row = {
     key: string;
@@ -11,6 +12,8 @@ type Row = {
     fill: number;
     maxBonus: number;
     note?: string;
+    /** Extra line under the row (the AI review's conclusion). */
+    summary?: string;
 };
 
 const pct = ( n: number ) => `${ Math.round( n * 1000 ) / 10 }%`;
@@ -71,8 +74,9 @@ function buildRows( b: TaskRewardBreakdown ): Row[] {
             key: "ai",
             label: "AI評価ボーナス",
             detail: i.ai.source === "ai" && i.ai.score !== null
-                ? `AIレビュー スコア ${ i.ai.score } / ${ c.aiScoreMax }`
-                : "AIレビューは準備中です（ボーナスなし）",
+                ? `AIレビュー スコア ${ i.ai.score } / ${ c.aiScoreMax }（${ VERIFICATION_LABELS[ i.ai.verification ?? "self_report" ] }・AIによる評価）`
+                : "AI分析なし（ボーナスなし）",
+            summary: i.ai.source === "ai" ? i.ai.evidenceSummary : undefined,
             factor: f.aiFactor,
             fill: i.ai.source === "ai" && i.ai.score !== null ? Math.min( Math.max( i.ai.score, 0 ), c.aiScoreMax ) / c.aiScoreMax : 0,
             maxBonus: c.aiScoreMaxBonus,
@@ -136,6 +140,7 @@ const TaskRewardBreakdownCard = ( { breakdown }: { breakdown: TaskRewardBreakdow
                                     { row.note && <span className="ml-1">（{ row.note }）</span> }
                                     <span className="ml-1">最大 +{ pct( row.maxBonus ) }</span>
                                 </p>
+                                { row.summary && <p className="text-xs italic text-foreground/70">「{ row.summary }」</p> }
                             </div>
                         );
 

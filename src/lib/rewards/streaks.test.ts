@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDaysToKey, computeProjectStreak, computeTaskStreak, dateKeyInZone, isoWeekdayOfKey, startOfDayKey } from "./streaks";
+import { addDaysToKey, computeCurrentStreak, computeLongestStreak, computeProjectStreak, computeTaskStreak, dateKeyInZone, isoWeekdayOfKey, startOfDayKey } from "./streaks";
 
 // 2026-11-23 is a Monday
 const MON = "2026-11-23";
@@ -77,6 +77,54 @@ describe( "computeTaskStreak", () => {
             { status: "completed", at: "2026-11-23T03:00:00Z" },
         ] ) ).toBe( 2 );
         expect( computeTaskStreak( [ { status: "abandoned", at: "2026-11-23T02:00:00Z" } ] ) ).toBe( 0 );
+    });
+
+});
+
+describe( "computeCurrentStreak", () => {
+
+    const weekdays = [ 1, 2, 3, 4, 5 ];
+
+    it( "does not break while today is still in progress", () => {
+        // Fri + Thu done, weekend off, Mon (today) not done yet
+        expect( computeCurrentStreak( { completionDayKeys: [ "2026-11-20", "2026-11-19" ], todayKey: MON, workDays: weekdays } ) ).toBe( 2 );
+    });
+
+    it( "counts today when it has a completion", () => {
+        expect( computeCurrentStreak( { completionDayKeys: [ MON, "2026-11-20" ], todayKey: MON, workDays: weekdays } ) ).toBe( 2 );
+    });
+
+    it( "is 0 after a missed work day", () => {
+        // Thu done, Fri missed
+        expect( computeCurrentStreak( { completionDayKeys: [ "2026-11-19" ], todayKey: MON, workDays: weekdays } ) ).toBe( 0 );
+        expect( computeCurrentStreak( { completionDayKeys: [], todayKey: MON, workDays: weekdays } ) ).toBe( 0 );
+    });
+
+});
+
+describe( "computeLongestStreak", () => {
+
+    const weekdays = [ 1, 2, 3, 4, 5 ];
+
+    it( "is 0 without completions", () => {
+        expect( computeLongestStreak( { completionDayKeys: [], todayKey: MON, workDays: weekdays } ) ).toBe( 0 );
+    });
+
+    it( "keeps the best run after a break", () => {
+        // Mon-Wed of the previous week (3), Thu missed, Fri done (1), today Mon done (2)
+        const keys = [ "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-20", MON ];
+        expect( computeLongestStreak( { completionDayKeys: keys, todayKey: MON, workDays: weekdays } ) ).toBe( 3 );
+    });
+
+    it( "skips free days and counts work done on them", () => {
+        // Fri, Sat (free day, worked), Mon
+        const keys = [ "2026-11-20", "2026-11-21", MON ];
+        expect( computeLongestStreak( { completionDayKeys: keys, todayKey: MON, workDays: weekdays } ) ).toBe( 3 );
+    });
+
+    it( "treats every day as a work day when work_days is empty", () => {
+        const keys = [ "2026-11-20", MON ];
+        expect( computeLongestStreak( { completionDayKeys: keys, todayKey: MON, workDays: [] } ) ).toBe( 1 );
     });
 
 });

@@ -1,6 +1,6 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { OnAirRecord } from "@/types/records";
-import { getActiveTask } from "../onair/serverActions";
+import { getActiveTask, getPendingReport } from "../onair/serverActions";
 import FlowClient from "@/components/flow/flow-client";
 import { fetchGraph, saveGraphToNodes } from "./serverActions";
 
@@ -20,8 +20,10 @@ const ProjectPageTree = async ( { searchParams, params }: Props ) => {
     const { projectId } = await params;
 
     const activeTask: OnAirRecord | null = await getActiveTask( projectId );
+    // the node of a finished task must stay as it is until its report is confirmed
+    const pendingReport = await getPendingReport( projectId );
 
-    if( activeTask ) {
+    if( activeTask || pendingReport ) {
 
         isInitialEditMode = false;
 
@@ -31,7 +33,7 @@ const ProjectPageTree = async ( { searchParams, params }: Props ) => {
 
     return (
         <ReactFlowProvider>
-            <FlowClient hasActiveTask={!!activeTask} saveGraphToNodes={saveGraphToNodes} isInitialEditMode={isInitialEditMode} initialNodes={nodes} initialEdges={edges} project_id={projectId}/>
+            <FlowClient hasActiveTask={!!activeTask || !!pendingReport} saveGraphToNodes={saveGraphToNodes} isInitialEditMode={isInitialEditMode} initialNodes={nodes} initialEdges={edges} project_id={projectId}/>
         </ReactFlowProvider>
     )
 }

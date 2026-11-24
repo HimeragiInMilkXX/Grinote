@@ -88,7 +88,7 @@ const ProjectDangerZone = ( { projectId, projectName, hasActiveTask }: Props ) =
 
             <CardHeader>
                 <CardTitle className="text-lg text-destructive"> 危険な操作 </CardTitle>
-                <CardDescription> { hasActiveTask ? "タスク実行中はリセット・削除できません。" : "これらの操作は元に戻せません。" } </CardDescription>
+                <CardDescription> { hasActiveTask ? "タスク実行中（レポート未提出を含む）はリセット・削除できません。" : "これらの操作は元に戻せません。" } </CardDescription>
             </CardHeader>
 
             <CardContent className="flex flex-col gap-4">

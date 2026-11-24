@@ -15,6 +15,8 @@ import { listMaterials } from "./list_materials"
 import { readMaterial } from "./read_material"
 import { proposeMaterials } from "./propose_materials"
 import { draftMemo } from "./draft_memo"
+import { listJourney } from "./list_journey"
+import { readJourneyEntry } from "./read_journey_entry"
 
 const baseTools = {
   github_repo: githubRepo,
@@ -27,6 +29,8 @@ const baseTools = {
   read_material: readMaterial,
   propose_materials: proposeMaterials,
   draft_memo: draftMemo,
+  list_journey: listJourney,
+  read_journey_entry: readJourneyEntry,
 }
 
 export function getTools(modelId: string) {
@@ -41,6 +45,8 @@ export type ChatUIMessage = UIMessage<
     finishReason?: FinishReason
     // The model returned only reasoning, so the route nudged it once more.
     autoRetried?: boolean
+    // Set when a fallback model answered instead of the selected one.
+    answeredBy?: string
   },
   UIDataTypes,
   InferUITools<typeof baseTools>
@@ -105,4 +111,14 @@ export type ProposeMaterialsToolPart = Extract<
 export type DraftMemoToolPart = Extract<
   ChatMessagePart,
   { type: "tool-draft_memo" }
+>
+
+export type ListJourneyToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-list_journey" }
+>
+
+export type ReadJourneyEntryToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-read_journey_entry" }
 >

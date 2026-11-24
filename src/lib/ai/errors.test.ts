@@ -29,6 +29,17 @@ describe( "describeChatError", () => {
         expect( describeChatError( error, "m" ) ).toBe( CHAT_ERROR_MESSAGES.context );
     });
 
+    it( "reports an invalid Gemini API key", () => {
+        const error = { name: "AI_APICallError", message: "API key not valid. Please pass a valid API key.", statusCode: 400 };
+        expect( describeChatError( error, "gemini-4-hydrogen" ) ).toBe( CHAT_ERROR_MESSAGES.apiKey );
+        expect( describeChatError( { name: "AI_LoadAPIKeyError", message: "Google Generative AI API key is missing." }, "gemini-4-hydrogen" ) ).toBe( CHAT_ERROR_MESSAGES.apiKey );
+    });
+
+    it( "reports a Gemini quota error", () => {
+        const error = { name: "AI_RetryError", message: "Failed after 3 attempts", lastError: { message: "Resource has been exhausted", statusCode: 429, responseBody: "{\"error\":{\"status\":\"RESOURCE_EXHAUSTED\"}}" } };
+        expect( describeChatError( error, "gemini-4-hydrogen" ) ).toBe( CHAT_ERROR_MESSAGES.quota );
+    });
+
     it( "falls back to a generic message", () => {
         expect( describeChatError( new Error( "boom" ), "m" ) ).toBe( CHAT_ERROR_MESSAGES.fallback );
         expect( describeChatError( undefined, "m" ) ).toBe( CHAT_ERROR_MESSAGES.fallback );

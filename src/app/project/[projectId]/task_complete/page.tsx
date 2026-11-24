@@ -45,6 +45,10 @@ const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/pr
                         <Button className="w-full border border-black/20 cursor-pointer" variant="secondary"> ダッシュボードへ </Button>
                     </Link>
 
+                    <Link href={`/project/${projectId}/journey`} className="basis-0 grow">
+                        <Button className="w-full border border-black/20 cursor-pointer" variant="secondary"> ジャーニーで見る </Button>
+                    </Link>
+
                     <Link href={`/project/${projectId}/character`} className="basis-0 grow">
                         <Button className="w-full cursor-pointer"> キャラクターへ </Button>
                     </Link>

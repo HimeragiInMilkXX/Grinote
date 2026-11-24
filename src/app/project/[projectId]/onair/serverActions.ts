@@ -1,9 +1,9 @@
 "use server";
 
 import { Task } from "@/types/flow";
-import { awardTaskCompletion } from "@/lib/rewards/award-task";
 import { OnAirRecord } from "@/types/records";
 import { createActionClient } from "@/utils/supabase/actions";
+import { createJournalSnapshot, type JournalNodeSnapshot } from "@/lib/journey/journal-db";
 import { createClient, requireUser } from "@/utils/supabase/server";
 import { intervalToDurationObject } from "@/utils/utils";
 import { redirect } from "next/navigation";
@@ -36,6 +36,19 @@ export const getActiveTask = async ( project_id: string ): Promise<OnAirRecord |
 
 }
 
+/** The record whose report is still pending (timer stopped with 完成, no XP yet), if any. */
+export const getPendingReport = async ( project_id: string ): Promise<{ id: number; node_id: string } | null> => {
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.from( "records" ).select( "id, node_id" ).eq( "project_id", project_id ).eq( "status", "reviewing" ).limit( 1 );
+
+    if( error ) throw error.message;
+
+    return data?.[0] ?? null;
+
+}
+
 export const getTaskFromNode = async ( node_id: string, project_id: string ): Promise<Task> => {
 
     const supabase = await createClient();
@@ -59,6 +72,8 @@ export const startTask = async ( node_id: string, project_id: string ): Promise<
     const supabase = await createActionClient();
 
     const user = await requireUser( supabase );
+
+    if( await getPendingReport( project_id ) ) throw new Error( "Finish the pending task report first" );
 
     const requestedTask = await getTaskFromNode( node_id, project_id );
 
@@ -106,7 +121,7 @@ export const abandonTask = async ( record_id: number, node_id: string, project_i
 
     const supabase = await createActionClient();
 
-    const { error } = await supabase.from("records").update({ status: "abandoned" }).eq("node_id", node_id).eq("project_id", project_id).eq("id", record_id);
+    const { error } = await supabase.from("records").update({ status: "abandoned" }).eq("node_id", node_id).eq("project_id", project_id).eq("id", record_id).in( "status", [ "active", "paused" ] );
 
     if( error ) throw error.message;
 
@@ -118,7 +133,7 @@ export const pauseTask = async ( record_id: number, node_id: string, project_id:
 
     const supabase = await createActionClient();
 
-    const { data: task, error } = await supabase.from("records").update({ status: "paused", duration }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
+    const { data: task, error } = await supabase.from("records").update({ status: "paused", duration }).eq("status", "active").eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
 
     if( error ) throw error.message;
 
@@ -140,7 +155,7 @@ export const resumeTask = async ( record_id: number, node_id: string, project_id
 
     const supabase = await createActionClient();
 
-    const { data: task, error } = await supabase.from("records").update({ status: "active" }).eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
+    const { data: task, error } = await supabase.from("records").update({ status: "active" }).eq("status", "paused").eq("id", record_id).eq("node_id", node_id).eq("project_id", project_id).select("*, nodes ( * )").single();
 
     if( error ) throw error.message;
 
@@ -159,18 +174,39 @@ export const resumeTask = async ( record_id: number, node_id: string, project_id
 }
 
 /**
- * Completes the record and awards its XP (Reward Engine v1.0, see docs/reward-engine.md).
- * The record, node progress, project XP/level/streak and resources are written in one
- * transaction; calling this again for an already completed record awards nothing.
+ * Stops the timer for good (完成) and moves the record to 'reviewing'. No XP yet: the user writes
+ * the task report first, then confirms the AI analysis on the report page, which awards the XP
+ * (Reward Engine v1.0 + journey system, docs/journey-system.md).
  */
-export const completeTask = async ( record_id: number, project_id: string, duration: number ) => {
+export const finishTask = async ( record_id: number, project_id: string, duration: number ) => {
 
     const supabase = await createActionClient();
 
     const user = await requireUser( supabase );
 
-    const { recordId } = await awardTaskCompletion( supabase, { recordId: record_id, projectId: project_id, userId: user.id, durationMs: duration } );
+    const safeDuration = Math.max( 0, Math.round( Number.isFinite( duration ) ? duration : 0 ) );
 
-    redirect( `/project/${project_id}/task_complete?recordId=${recordId}` )
+    const { data, error } = await supabase
+        .from( "records" )
+        .update( { status: "reviewing", duration: safeDuration, ended_at: new Date().toISOString() } )
+        .eq( "id", record_id ).eq( "project_id", project_id )
+        .in( "status", [ "active", "paused" ] )
+        .select( "id, node_id, nodes ( task_name, description, time_limit )" );
+
+    if( error ) throw error.message;
+
+    if( !data?.length ) {
+        // a double click or a second tab: fine if it is already waiting for its report
+        const { data: current } = await supabase.from( "records" ).select( "status" ).eq( "id", record_id ).eq( "project_id", project_id ).maybeSingle();
+        if( current?.status !== "reviewing" ) throw new Error( "This task is not in progress" );
+    }
+    else {
+        // the report's task snapshot (its estimate is what the reward uses); kept after 作業に戻る
+        const row = data[0] as unknown as { node_id: string; nodes: JournalNodeSnapshot | JournalNodeSnapshot[] | null };
+        const node = Array.isArray( row.nodes ) ? row.nodes[0] ?? null : row.nodes;
+        await createJournalSnapshot( supabase, { recordId: record_id, projectId: project_id, userId: user.id, nodeId: row.node_id, node } );
+    }
+
+    redirect( `/project/${project_id}/task_report?recordId=${record_id}` )
 
 }

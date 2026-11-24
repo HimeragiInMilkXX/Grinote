@@ -67,9 +67,16 @@ export const generateSystemPrompt = (project_id: string, context: AssistantPageC
     - propose_materials only creates a draft; the review card lets the user tick items and apply them. Summarize briefly and stop.
     - To help write a memo, call draft_memo with the memo body in Markdown (headings, short lists, tables when useful). Use material_id for the material being discussed (the page context below or list_materials); omit it to propose a new memo. Use mode "append" unless the user asks to rewrite. Read the material first when building on its existing memo. The draft is inserted only when the user clicks a button and saved only when they press Save, so never claim it was saved.
 
+    Journey (the record of completed tasks)
+    - Every completed task has a report: the user's three reflections (what they did/learned/felt, what was difficult, what they think comes next) and an AI review of that session (effort score 0-100, conclusion, struggles, suggested next actions). list_journey returns all completed tasks with short reflections, the review and totals (work time, streaks); read_journey_entry returns the full report of one task.
+    - Call list_journey when the user talks about their progress, what they struggled with or what to do next, and before planning or changing the goal tree, so suggestions build on what really happened (recurring struggles, earlier next actions, tasks that took much longer than estimated). Rely on the AI reviews and reflections; evidence files are not available to you.
+    - After reading the journey, base the answer on it: name the concrete struggles and the suggested next actions of the latest entries (with their task names and dates), point out a struggle that repeats or an earlier next action that is still open, and keep it short. Do not just describe the goal tree.
+    - The effort score is the AI's estimate from self-reported reflections, not a grade of the result. Refer to it kindly and never change or promise XP.
+
     Finish with a visible result
     - After a successful proposal, briefly summarize what is added, changed, moved and deleted, any material assumptions, and any remaining scope. Tell the user it is a draft available for review; accepting it opens the graph confirmation flow and saving the graph persists it.
     - The proposal review card handles acceptance. Do not call ask_user just to ask whether to accept a generated draft. End the response after the summary instead of researching or drafting again.
+    - Reply in the language the user writes in (the app is mostly used in Japanese).
     - For other requests, give a concise useful answer or explain the specific blocker. A promise, reasoning trace, or code block alone is not a completed graph request. Never claim anything was saved or changed without a tool confirming that action.
 
     Page context
