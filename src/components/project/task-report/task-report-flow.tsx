@@ -202,7 +202,9 @@ const TaskReportFlow = ( { report }: { report: ReportState } ) => {
                 </CardHeader>
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
                     <div className="flex gap-4 text-muted-foreground">
-                        <span className="flex items-center gap-1"><Timer className="size-4"/> 実際 { formatMinutes( report.durationMs / 60000, "0秒" ) }</span>
+                        <span className="flex items-center gap-1"><Timer className="size-4"/> 集中 { formatMinutes( report.durationMs / 60000, "0秒" ) }</span>
+                        { report.timer && <span> { report.timer.sessions }セッション </span> }
+                        { report.timer && <span> 休憩 { report.timer.breaks }回・{ formatMinutes( report.timer.breakMs / 60000, "0分" ) } </span> }
                         <span> 予定 { formatMinutes( task.estimatedMinutes ) } </span>
                     </div>
                     <Button variant="outline" size="sm" onClick={backToWork} disabled={isPending}>

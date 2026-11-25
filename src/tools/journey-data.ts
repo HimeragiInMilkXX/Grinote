@@ -31,6 +31,26 @@ export const cut = ( text: string | null | undefined, limit: number ) => {
 
 };
 
+/** How the user worked on a task (timer, sessions, breaks, pauses). Pause reasons aren't sent. */
+export function entryWorkFields( entry: JourneyEntry ) {
+
+    const t = entry.timer;
+    if( !t ) return { work: null };
+
+    return {
+        work: {
+            timers: t.modes.map( m => m.mode ),
+            sessions: t.sessions,
+            breaks: t.breaks,
+            break_minutes: minutes( t.breakMs / 60000 ),
+            pauses: t.pauses,
+            pause_minutes: minutes( t.pauseMs / 60000 ),
+            timer_resets: t.resets,
+        },
+    };
+
+}
+
 /** AI review fields of an entry. Evidence is never sent: it is only used for scoring at completion. */
 export function entryAiFields( entry: JourneyEntry ) {
 

@@ -7,6 +7,7 @@ import { ChevronDown, FileUp, MessageCircleQuestion } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDateTime, formatMinutes } from "./format";
 import JourneyAnalysisView, { scoreTone } from "./journey-analysis-view";
+import TimerSummaryView from "@/components/project/timer/timer-summary";
 
 function ScoreBadge( { entry }: { entry: JourneyEntry } ) {
 
@@ -61,7 +62,8 @@ const JourneyTimelineEntry = ( { entry }: { entry: JourneyEntry } ) => {
 
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span> 予定 { formatMinutes( entry.estimatedMinutes ) } </span>
-                        <span> 実際 { formatMinutes( entry.actualMinutes, "0分" ) } </span>
+                        <span> 集中 { formatMinutes( entry.actualMinutes, "0分" ) }{ entry.timer ? `（${ entry.timer.sessions }セッション）` : "" } </span>
+                        { entry.timer && <span> 休憩 { entry.timer.breaks }回・{ formatMinutes( entry.timer.breakMs / 60000, "0分" ) } </span> }
                         { breakdown && (
                             <span className={ levelUp ? "font-semibold text-primary" : undefined }>
                                 Lv.{ breakdown.before.level }{ levelUp ? ` → Lv.${ breakdown.after.level }` : "" }（累計 { Math.round( breakdown.after.totalXp ) } XP）
@@ -80,6 +82,10 @@ const JourneyTimelineEntry = ( { entry }: { entry: JourneyEntry } ) => {
                             <p className="text-sm whitespace-pre-wrap text-foreground/80">{ entry.taskDescription }</p>
                         </Block>
                     ) }
+
+                    <Block title="作業の記録">
+                        <TimerSummaryView summary={ entry.timer } showPauseReasons/>
+                    </Block>
 
                     <Block title="振り返り">
                         { journal ? (

@@ -2,6 +2,8 @@ import { OnAirRecord } from "@/types/records";
 import { getRecord } from "./serverActions";
 import { redirect } from "next/navigation";
 import { getMsFormatted } from "@/utils/utils";
+import TimerSummaryView from "@/components/project/timer/timer-summary";
+import { summarizeStoredTimer } from "@/lib/timer/summary";
 import TaskCompleteCharacter from "@/components/project/character/task-complete-character";
 import TaskRewardBreakdownCard from "@/components/project/task-complete/task-reward-breakdown";
 import { getProject } from "@/lib/projects";
@@ -28,6 +30,7 @@ const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/pr
     const xpGained = breakdown && firstView ? breakdown.awardedXp : 0;
 
     const time = getMsFormatted( record.duration );
+    const timer = summarizeStoredTimer( record.timer );
 
     return (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -38,7 +41,11 @@ const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/pr
                     project={project}
                     initTotalXp={initTotalXp}
                     xpGained={xpGained}/>
-                <p className="my-3">お疲れさん! {record.nodes?.task_name}を{time.hours}:{time.minutes}:{time.seconds}で終わらせました！ </p>
+                <p className="my-3">お疲れさん! {record.nodes?.task_name}を{ timer ? "集中" : "" }{time.hours}:{time.minutes}:{time.seconds}で終わらせました！ </p>
+                <div className="mb-3 rounded-2xl border bg-card p-3">
+                    <p className="mb-2 text-sm font-semibold">作業の記録</p>
+                    <TimerSummaryView summary={timer} showPauseReasons/>
+                </div>
                 <div className="w-full flex gap-3">
 
                     <Link href={`/project/${projectId}/dashboard`} className="basis-0 grow">

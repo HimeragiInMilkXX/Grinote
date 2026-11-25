@@ -69,7 +69,7 @@ The maximum is `round(50 × 1.60 × 1.10 × 1.05 × 1.15 × 1.50) = 159`. The en
 | Input | Source |
 |---|---|
 | `estimatedTime` | `nodes.time_limit` (interval) in minutes. The default `00:00:00` means no estimate, so the factor is 1 |
-| `actualTime` | Tracked `duration` (ms, saved by `finishTask`) in minutes. 0 means the factor is 1 |
+| `actualTime` | Focus time: `records.duration` (ms) in minutes, written by the server-side work timer (`src/lib/timer`, MVP 4.5). Breaks and pauses are not included. 0 means the factor is 1 |
 | `projectStreak` | `computeProjectStreak` over completed `records` days (see rules) |
 | `taskStreak` | `computeTaskStreak` over today's completed/abandoned `records` |
 | `aiScore` | `getAiReviewScore()`: the effort score (0..100) of the analysed task report. `null` (factor 1) when the analysis failed and the user claimed without AI |
@@ -93,7 +93,7 @@ The spec leaves these open. The rule ids are stored in the snapshot (`rules`), s
 
 ## Execution flow (atomic and idempotent)
 
-1. `onair-timer.tsx` calls the `finishTask(record_id, project_id, duration)` server action. The record becomes `reviewing` (duration and `ended_at` saved, no XP), and the user is sent to the task report (`docs/journey-system.md`).
+1. `onair-timer.tsx` calls the `finishTask(record_id, project_id)` server action. It closes the timer with server time, and the record becomes `reviewing` (focus time in `duration`, the closed `timer`, `ended_at`; no XP), and the user is sent to the task report (`docs/journey-system.md`).
 2. On 確認して経験値を受け取る, `confirmReport` calls `awardTaskCompletion`, which reads the record. If it's already `completed`, it returns without awarding anything. It must be `reviewing`, and its journal must be analysed (or failed, for the no-AI claim). Otherwise it reads the project's XP, works out the level and growth stage **before** the award, computes the streaks and the reward, and runs `planXpGain` to get the new level.
 3. The RPC `complete_task_with_reward` runs in one transaction (security invoker, so RLS applies):
    1. It locks the record. An already completed record returns `{already_completed: true}`, which makes retries safe. Otherwise it needs `reviewing` and a journal that is `analyzed` or `failed` (`journal_required`), whose `ai_score` matches the snapshot.

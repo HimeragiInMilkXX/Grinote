@@ -7,7 +7,7 @@ Read `docs/reward-engine.md` for the XP formula. The AI score is its `aiScore` i
 ## Flow
 
 ```
-on-air 完成 ──► finishTask ──► records.status = 'reviewing'   (timer stopped, ended_at set, journal snapshot, no XP)
+on-air 完成 ──► finishTask ──► records.status = 'reviewing'   (timer closed, ended_at set, journal snapshot, no XP)
                                   │
                 task_report page  ▼
    reflections (3, all required) ─► analyzeReport ─► journal 'analyzing' ─► runJourneyAnalysis (LLM)
@@ -129,3 +129,12 @@ The schema and UI already hold the slots for evidence: `task_journals.evidence`,
    - Unit tests for the evidence validation, the storage path builder, and `normalizeAnalysis` with evidence.
    - An `eval:journey` case with a fixture image.
    - Manual tests: upload → analyse → confirm, a failure while uploading, and a delete before confirming.
+
+## Work timer data (MVP 4.5)
+
+Every record from 4.5 on has `records.timer` (the `TimerState` from `src/lib/timer`). The report, task_complete and journey pages show it through `summarizeStoredTimer` → `TimerSummaryView` (`components/project/timer/timer-summary.tsx`): focus time and sessions, breaks (scheduled / custom) and break time, total (focus + break), pauses (count, time, reasons; not in the total), and the timers used in order (resets marked). Records before 4.5 show 旧バージョン（タイマーの記録なし）.
+
+- `records.duration` is focus time only. It is still what the reward (`actualTime`) and the AI's "Actual focus time" use.
+- The analysis prompt also gets a one-line work pattern (`describeWorkPattern`, `src/lib/timer/pattern.ts`): timers, sessions, breaks, pauses. Pause reasons are never sent to the model. The system prompt says breaks and pauses are normal and never low effort.
+- `list_journey` / `read_journey_entry` return a `work` object (timers, sessions, breaks, break/pause minutes, resets) and totals `focus_minutes`, `focus_sessions`, `break_minutes`.
+- 作業に戻る re-opens the closed timer as a pause starting now (`reopen`), so report-writing time is never counted.

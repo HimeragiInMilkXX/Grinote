@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
-import { getActiveTask, getPendingReport, startTask } from "./serverActions";
+import { getActiveTask, getPendingReport, getTaskFromNode } from "./serverActions";
 import { OnAirRecord } from "@/types/records";
 import OnAirTimer from "@/components/project/onair/onair-timer";
 import OnAirCharacter from "@/components/project/character/onair-character";
 import { getProject } from "@/lib/projects";
-import { errorMessage } from "@/utils/utils";
 import { getNodeLinks } from "../materials/serverActions";
 import OnAirLinkedMaterials from "@/components/project/onair/onair-linked-materials";
 import { MaterialSummary } from "@/types/materials";
+import TimerStartPanel from "@/components/project/onair/timer/timer-start-panel";
 
 const ProjectPageOnAir = async ( { searchParams, params }: PageProps<"/project/[projectId]/onair"> ) => {
 
@@ -21,61 +21,46 @@ const ProjectPageOnAir = async ( { searchParams, params }: PageProps<"/project/[
     const pendingReport = await getPendingReport( projectId );
     if( pendingReport ) redirect( `/project/${projectId}/task_report?recordId=${pendingReport.id}` );
 
-    let activeTask: OnAirRecord | null = await getActiveTask( projectId );
-    const project: Project = await getProject( projectId );
+    const activeTask: OnAirRecord | null = await getActiveTask( projectId );
 
-    const tryStartTask = async ( nodeId: string ) => {
+    if( !activeTask ) {
 
-        if( activeTask ) {
+        // started from the tree: pick a timer first (the record is created by startTask)
+        if( nodeId ) {
 
-            redirect(`/project/${projectId}/onair`)
+            const task = await getTaskFromNode( nodeId, projectId ).catch( () => null );
 
-        } else {
+            if( task?.isAction && !task.isCompleted ) {
 
-            try {
-
-                activeTask = await startTask( nodeId, projectId );
-
-            } catch( e ) {
-
-                console.error( errorMessage( e ) );
-                redirect(`/project/${projectId}/tree?isInitialEditMode=false`)
+                return (
+                    <div className="flex justify-center">
+                        <TimerStartPanel projectId={projectId} nodeId={nodeId} taskName={task.task_name}/>
+                    </div>
+                );
 
             }
 
         }
 
-    }
-
-    if( nodeId ) await tryStartTask( nodeId );
-
-    if( !activeTask ) {
-
         redirect(`/project/${projectId}/tree?isInitialEditMode=false`)
 
     }
 
-    // node_id is reliable; the joined node key differs between getActiveTask (node) and startTask (nodes)
-    const linkedMaterials: MaterialSummary[] = activeTask ? await getNodeLinks( projectId, activeTask.node_id ).catch( () => [] ) : [];
+    // a task is already running: the requested node can't start
+    if( nodeId && nodeId !== activeTask.node_id ) redirect( `/project/${projectId}/onair` );
+
+    const project: Project = await getProject( projectId );
+
+    const linkedMaterials: MaterialSummary[] = await getNodeLinks( projectId, activeTask.node_id ).catch( () => [] );
 
     return (
-        <>
-            {
-
-                activeTask && (
-
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="flex gap-3">
-                            <OnAirCharacter project={project}/>
-                            <OnAirTimer activeTask={activeTask}/>
-                        </div>
-                        <OnAirLinkedMaterials project_id={projectId} node_id={activeTask.node_id} initialMaterials={linkedMaterials}/>
-                    </div>
-
-                )
-
-            }
-        </>
+        <div className="flex flex-col items-center gap-6">
+            <div className="flex gap-3">
+                <OnAirCharacter project={project}/>
+                <OnAirTimer activeTask={activeTask} serverNow={Date.now()}/>
+            </div>
+            <OnAirLinkedMaterials project_id={projectId} node_id={activeTask.node_id} initialMaterials={linkedMaterials}/>
+        </div>
     )
 }
 

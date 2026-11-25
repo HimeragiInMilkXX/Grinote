@@ -29,6 +29,11 @@ import { intervalToMinutes, msToMinutes } from "@/lib/rewards/breakdown";
 import { createActionClient } from "@/utils/supabase/actions";
 import { createClient, requireUser } from "@/utils/supabase/server";
 import { errorMessage } from "@/utils/utils";
+import { applyTimerEvent, asTimerState } from "@/lib/timer/machine";
+import { summarizeStoredTimer, summarizeTimer } from "@/lib/timer/summary";
+import { toWorkPattern } from "@/lib/timer/pattern";
+import type { TimerSummary } from "@/lib/timer/types";
+import { TIMER_BREAK_OVERRUN_GRACE_MS } from "@/lib/timer/server-config";
 
 const HISTORY_LIMIT = 5;
 
@@ -47,6 +52,8 @@ export interface ReportState {
     nodeId: string;
     durationMs: number;
     endedAt: string | null;
+    /** sessions / breaks / timers used (null for records before 4.5) */
+    timer: TimerSummary | null;
     task: ReportTask;
     journal: JournalView | null;
     limits: { maxRuns: number; maxRounds: number };
@@ -64,10 +71,12 @@ type RecordRow = {
     node_id: string;
     duration: number | string | null;
     ended_at: string | null;
+    updated_at: string;
+    timer: unknown;
     nodes: NodeRow | NodeRow[] | null;
 };
 
-const RECORD_SELECT = "id, status, node_id, duration, ended_at, nodes ( task_name, description, time_limit, isLoop, repetitions_completed, repetitions_required )";
+const RECORD_SELECT = "id, status, node_id, duration, ended_at, updated_at, timer, nodes ( task_name, description, time_limit, isLoop, repetitions_completed, repetitions_required )";
 
 const MESSAGES = {
     notReviewing: "このタスクはレポート待ちではありません。",
@@ -134,6 +143,13 @@ const storedReflection = ( j: TaskJournalRow ) => toReflectionDraft( { learned: 
 
 const hasUsableAnalysis = ( j: TaskJournalRow ) => j.ai_score != null && asJourneyAnalysis( j.analysis ) != null;
 
+/** 作業に戻る: the closed timer re-opens as a pause starting now (report time isn't counted). */
+function reopenedTimer( record: RecordRow ) {
+    const timer = asTimerState( record.timer );
+    if( !timer || timer.phase !== "ended" ) return {};
+    return { timer: applyTimerEvent( timer, { type: "reopen" }, Date.now(), { overrunGraceMs: TIMER_BREAK_OVERRUN_GRACE_MS } ) };
+}
+
 /** For the report page. Redirects when the record isn't waiting for its report. */
 export const getReport = async ( recordId: number, projectId: string ): Promise<ReportState> => {
 
@@ -158,6 +174,7 @@ export const getReport = async ( recordId: number, projectId: string ): Promise<
         nodeId: record.node_id,
         durationMs: Number( record.duration ) || 0,
         endedAt: record.ended_at,
+        timer: summarizeStoredTimer( record.timer ),
         task: toTask( record, journal ),
         journal: view,
         limits: { maxRuns: MAX_ANALYSIS_RUNS, maxRounds: MAX_CLARIFICATION_ROUNDS },
@@ -266,6 +283,7 @@ export const analyzeReport = async ( recordId: number, projectId: string, input:
                 project: { name: projectRes.data.name, finalGoal: projectRes.data.final_goal, description: projectRes.data.description },
                 task: { name: task.name, description: task.description, estimatedMinutes: task.estimatedMinutes, isLoop: task.isLoop, repetitionsCompleted: task.repetitionsCompleted, repetitionsRequired: task.repetitionsRequired },
                 actualMinutes: msToMinutes( Number( record.duration ) || 0 ),
+                work: ( () => { const t = asTimerState( record.timer ); return t ? toWorkPattern( summarizeTimer( t ) ) : undefined; } )(),
                 reflection: reflection.value,
                 clarifications: settledClarifications( clarifications ),
                 history: entries.map( toHistorySummary ).filter( ( h ): h is NonNullable<typeof h> => !!h ),
@@ -446,7 +464,7 @@ export const resumeWork = async ( recordId: number, projectId: string ): Promise
 
         const { data, error } = await supabase
             .from( "records" )
-            .update( { status: "paused", ended_at: null } )
+            .update( { status: "paused", ended_at: null, ...reopenedTimer( record ) } )
             .eq( "id", recordId ).eq( "project_id", projectId ).eq( "status", "reviewing" )
             .select( "id" );
 

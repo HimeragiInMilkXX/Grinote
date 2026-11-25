@@ -1,4 +1,5 @@
 import { TableTaskRow } from "./flow";
+import type { TimerState } from "@/lib/timer/types";
 
 export type OnAirRecord = {
 
@@ -23,5 +24,7 @@ export type OnAirRecord = {
     /** Reward snapshot (TaskRewardBreakdown, src/lib/rewards/breakdown.ts); null on records before Reward Engine v1.0 */
     reward_breakdown?: unknown;
     formula_version?: string | null;
+    /** Work timer (MVP 4.5, src/lib/timer). Open records always have one; null on records before 4.5. */
+    timer?: TimerState | null;
 
 }

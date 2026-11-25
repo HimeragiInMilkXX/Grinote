@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAnalysisPrompt, sanitizeUserText } from "./prompt";
+import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt, sanitizeUserText } from "./prompt";
 
 const base = {
     project: { name: "英語", finalGoal: "TOEIC 800" },
@@ -18,7 +18,8 @@ describe( "buildAnalysisPrompt", () => {
         const p = buildAnalysisPrompt( base );
         expect( p ).toContain( "単語100個" );
         expect( p ).toContain( "Estimated time: 30 min" );
-        expect( p ).toContain( "Actual time: 42 min" );
+        expect( p ).toContain( "Actual focus time: 42 min" );
+        expect( p ).not.toContain( "Work pattern" );
         expect( p ).toContain( "<user_learned>" );
         expect( p ).toContain( "You may ask clarifying questions" );
     });
@@ -27,6 +28,12 @@ describe( "buildAnalysisPrompt", () => {
         const p = buildAnalysisPrompt( { ...base, canClarify: false, clarifications: [ { round: 1, question: "何ページ？", answer: "", skipped: true } ] } );
         expect( p ).toContain( "You must judge now" );
         expect( p ).toContain( "the user could not add more" );
+    });
+
+    it( "describes the work pattern without pause reasons", () => {
+        const p = buildAnalysisPrompt( { ...base, work: { timers: [ "starter", "flowtime" ], sessions: 2, completedSessions: 0, breaks: 1, breakMinutes: 8.2, pauses: 1, pauseMinutes: 3, resets: 0 } } );
+        expect( p ).toContain( "Work pattern: timer 10-minute starter → Flowtime, 2 focus sessions, 1 break (8 min), 1 pause (3 min, not counted as work)" );
+        expect( ANALYSIS_SYSTEM_PROMPT ).toContain( "breaks and pauses are not in it" );
     });
 
     it( "adds history summaries", () => {

@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import type { JourneyStats } from "@/lib/journey/history";
-import { CalendarDays, CheckCircle2, Clock, Flame, Medal } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, Coffee, Flame, Medal, Target } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatDate, formatMinutes } from "./format";
 
@@ -19,8 +19,10 @@ const JourneyStatsCard = ( { stats }: { stats: JourneyStats } ) => {
 
     return (
         <Card>
-            <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                <Stat icon={<Clock className="size-3.5"/>} label="総作業時間" value={ formatMinutes( stats.totalWorkMs / 60000, "0分" ) }/>
+            <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Stat icon={<Clock className="size-3.5"/>} label="総集中時間" value={ formatMinutes( stats.totalWorkMs / 60000, "0分" ) }/>
+                <Stat icon={<Target className="size-3.5"/>} label="集中セッション" value={`${ stats.totalSessions }回`}/>
+                <Stat icon={<Coffee className="size-3.5"/>} label="総休憩時間" value={ formatMinutes( stats.totalBreakMs / 60000, "0分" ) }/>
                 <Stat icon={<CheckCircle2 className="size-3.5"/>} label="完了タスク" value={`${ stats.completedTasks }件`}/>
                 <Stat icon={<Flame className="size-3.5"/>} label="現在の連続" value={`${ stats.currentStreak }日`}/>
                 <Stat icon={<Medal className="size-3.5"/>} label="最高連続" value={`${ stats.longestStreak }日`}/>

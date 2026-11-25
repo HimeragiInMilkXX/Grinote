@@ -35,3 +35,33 @@ describe( "toJourneyEntry", () => {
     });
 
 });
+
+describe( "timer summaries (4.5)", () => {
+
+    it( "summarizes a stored timer and adds sessions / break time to the stats", async () => {
+        const { createTimer, applyTimerEvent } = await import( "@/lib/timer/machine" );
+        const t0 = Date.UTC( 2026, 10, 25 );
+        let timer = createTimer( "pomodoro", null, t0 );
+        timer = applyTimerEvent( timer, { type: "session_due" }, t0 + 25 * 60000 );
+        timer = applyTimerEvent( timer, { type: "accept_break" }, t0 + 25 * 60000 );
+        timer = applyTimerEvent( timer, { type: "end_break" }, t0 + 30 * 60000 );
+        timer = applyTimerEvent( timer, { type: "close" }, t0 + 40 * 60000 );
+
+        const e = toJourneyEntry( {
+            id: 2, node_id: "n", started_at: "2026-11-25T00:00:00Z", completed_at: "2026-11-25T00:40:00Z", updated_at: "2026-11-25T00:40:00Z",
+            duration: String( 35 * 60000 ), xp_change: 10, reward_breakdown: null, timer, nodes: null, task_journals: [],
+        } );
+        expect( e.timer ).toMatchObject( { focusMs: 35 * 60000, breakMs: 5 * 60000, sessions: 2, breaks: 1 } );
+        expect( e.timer?.modes.map( m => m.mode ) ).toEqual( [ "pomodoro" ] );
+
+        const stats = computeJourneyStats( [ e, { durationMs: 60000, completedAt: "2026-11-24T00:00:00Z" } ], { created_at: "2026-11-01T00:00:00Z", work_days: [] } );
+        expect( stats.totalSessions ).toBe( 2 );
+        expect( stats.totalBreakMs ).toBe( 5 * 60000 );
+    });
+
+    it( "is null for records before 4.5", () => {
+        const e = toJourneyEntry( { id: 3, node_id: "n", started_at: "x", completed_at: null, updated_at: "2026-11-25T00:00:00Z", duration: 0, xp_change: 0, reward_breakdown: null, nodes: null, task_journals: [] } );
+        expect( e.timer ).toBeNull();
+    });
+
+});

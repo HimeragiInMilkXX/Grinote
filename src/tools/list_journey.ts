@@ -1,14 +1,15 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { cut, dayKey, entryAiFields, loadJourney, minutes } from "./journey-data";
+import { cut, dayKey, entryAiFields, entryWorkFields, loadJourney, minutes } from "./journey-data";
 
 const DEFAULT_LIMIT = 15;
 
 export const listJourney = tool({
     description:
-        "List the project's journey: every completed task (newest first) with its date, estimated/actual minutes, XP, the user's short reflections, " +
+        "List the project's journey: every completed task (newest first) with its date, estimated minutes, actual focus minutes (breaks and pauses excluded), " +
+        "how they worked (work: timer used such as pomodoro/deep/starter/flowtime, focus sessions, breaks with minutes, pauses; null before timers existed), XP, the user's short reflections, " +
         "and the AI review of that session (effort score 0-100, conclusion, struggles, suggested next actions), plus totals " +
-        "(work time, completed tasks, current and longest streak). Read-only. " +
+        "(focus time, focus sessions, break time, completed tasks, current and longest streak). Read-only. " +
         "Call this when the user talks about their progress, what they struggled with, what to do next, or before planning or changing the goal tree. " +
         "Use read_journey_entry for the full report of one task.",
     inputSchema: z.object({
@@ -22,7 +23,9 @@ export const listJourney = tool({
 
         return {
             totals: {
-                work_minutes: minutes( stats.totalWorkMs / 60000 ),
+                focus_minutes: minutes( stats.totalWorkMs / 60000 ),
+                focus_sessions: stats.totalSessions,
+                break_minutes: minutes( stats.totalBreakMs / 60000 ),
                 completed_tasks: stats.completedTasks,
                 current_streak_days: stats.currentStreak,
                 longest_streak_days: stats.longestStreak,
@@ -34,6 +37,7 @@ export const listJourney = tool({
                 task_name: e.taskName,
                 estimated_minutes: e.estimatedMinutes > 0 ? minutes( e.estimatedMinutes ) : null,
                 actual_minutes: minutes( e.actualMinutes ),
+                ...entryWorkFields( e ),
                 xp: e.xp,
                 reflection: e.journal ? {
                     learned: cut( e.journal.reflection.learned, 200 ),

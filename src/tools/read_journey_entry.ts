@@ -1,11 +1,11 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { settledClarifications } from "@/lib/journey/journal";
-import { dayKey, entryAiFields, loadJourney, minutes } from "./journey-data";
+import { dayKey, entryAiFields, entryWorkFields, loadJourney, minutes } from "./journey-data";
 
 export const readJourneyEntry = tool({
     description:
-        "Read the full report of one completed task from the journey: the user's three reflections (what they did/learned/felt, what was difficult, " +
+        "Read the full report of one completed task from the journey: focus minutes and how they worked (timer, sessions, breaks, pauses), the user's three reflections (what they did/learned/felt, what was difficult, " +
         "what they think comes next), the AI's clarifying questions with the answers, and the AI review (what they did, achieved, struggled with, " +
         "next actions, conclusion, effort score with reasons). Read-only. Get record_id from list_journey.",
     inputSchema: z.object({
@@ -29,6 +29,7 @@ export const readJourneyEntry = tool({
             task_description: entry.taskDescription,
             estimated_minutes: entry.estimatedMinutes > 0 ? minutes( entry.estimatedMinutes ) : null,
             actual_minutes: minutes( entry.actualMinutes ),
+            ...entryWorkFields( entry ),
             xp: entry.xp,
             level_before: entry.breakdown?.before.level ?? null,
             level_after: entry.breakdown?.after.level ?? null,

@@ -10,6 +10,8 @@ import { computeCurrentStreak, computeLongestStreak, dateKeyInZone } from "@/lib
 import { NEXT_ACTION_LABELS } from "./analysis";
 import { toJournalView, type JournalView, type TaskJournalRow } from "./journal";
 import type { HistorySummary } from "./prompt";
+import { summarizeStoredTimer } from "@/lib/timer/summary";
+import type { TimerSummary } from "@/lib/timer/types";
 
 export interface JourneyEntry {
     recordId: number;
@@ -23,12 +25,18 @@ export interface JourneyEntry {
     actualMinutes: number;
     xp: number;
     breakdown: TaskRewardBreakdown | null;
+    /** sessions / breaks / pauses / timers used; null for records before 4.5 */
+    timer: TimerSummary | null;
     /** null for records completed before the journey system (4.0). */
     journal: JournalView | null;
 }
 
 export interface JourneyStats {
+    /** focus time */
     totalWorkMs: number;
+    totalBreakMs: number;
+    /** focus sessions (records from 4.5 on) */
+    totalSessions: number;
     completedTasks: number;
     currentStreak: number;
     longestStreak: number;
@@ -47,11 +55,12 @@ type EntryRow = {
     duration: number | string | null;
     xp_change: number | null;
     reward_breakdown: unknown;
+    timer?: unknown;
     nodes: { task_name: string; description: string | null; time_limit: string | null } | { task_name: string; description: string | null; time_limit: string | null }[] | null;
     task_journals: TaskJournalRow | TaskJournalRow[] | null;
 };
 
-export const JOURNEY_ENTRY_SELECT = "id, node_id, started_at, completed_at, updated_at, duration, xp_change, reward_breakdown, nodes ( task_name, description, time_limit ), task_journals ( * )";
+export const JOURNEY_ENTRY_SELECT = "id, node_id, started_at, completed_at, updated_at, duration, xp_change, reward_breakdown, timer, nodes ( task_name, description, time_limit ), task_journals ( * )";
 
 export function toJourneyEntry( row: EntryRow ): JourneyEntry {
 
@@ -75,6 +84,7 @@ export function toJourneyEntry( row: EntryRow ): JourneyEntry {
         actualMinutes: msToMinutes( durationMs ),
         xp: breakdown?.awardedXp ?? row.xp_change ?? 0,
         breakdown,
+        timer: summarizeStoredTimer( row.timer ),
         journal: journalRow ? toJournalView( journalRow ) : null,
     };
 
@@ -100,13 +110,15 @@ export async function loadJourneyEntries( supabase: SupabaseClient, projectId: s
 
 }
 
-export function computeJourneyStats( entries: readonly Pick<JourneyEntry, "durationMs" | "completedAt">[], project: { created_at: string; work_days: readonly number[] }, now: Date = new Date() ): JourneyStats {
+export function computeJourneyStats( entries: readonly ( Pick<JourneyEntry, "durationMs" | "completedAt"> & { timer?: TimerSummary | null } )[], project: { created_at: string; work_days: readonly number[] }, now: Date = new Date() ): JourneyStats {
 
     const dayKeys = entries.map( e => dateKeyInZone( new Date( e.completedAt ), REWARD_DAY_TIMEZONE ) );
     const todayKey = dateKeyInZone( now, REWARD_DAY_TIMEZONE );
 
     return {
         totalWorkMs: entries.reduce( ( sum, e ) => sum + ( Number.isFinite( e.durationMs ) ? e.durationMs : 0 ), 0 ),
+        totalBreakMs: entries.reduce( ( sum, e ) => sum + ( e.timer?.breakMs ?? 0 ), 0 ),
+        totalSessions: entries.reduce( ( sum, e ) => sum + ( e.timer?.sessions ?? 0 ), 0 ),
         completedTasks: entries.length,
         currentStreak: computeCurrentStreak( { completionDayKeys: dayKeys, todayKey, workDays: project.work_days } ),
         longestStreak: computeLongestStreak( { completionDayKeys: dayKeys, todayKey, workDays: project.work_days } ),

@@ -32,7 +32,7 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - `actions.ts` `createActionClient()`: for Server Actions that write or change auth. It writes cookies.
 - `client.ts`: browser client. `middleware.ts`: used by `proxy.ts`.
 - Auth guards: `redirectIfNotAuthenticated(path)` / `redirectIfAuthenticated` in `src/utils/`, called from layouts.
-- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records`, `task_journals`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
+- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
 
 ### Materials
 - `materials` has `is_favourite` and `pinned_at` (null = not pinned; pins are ordered by it). The pin limit is `MATERIAL_PIN_LIMIT` in `src/lib/materials/config.ts`, enforced in `setMaterialPinned`. `getProjectMaterials` excludes pinned rows; `getPinnedMaterials` lists them above the table regardless of search/filter.
@@ -93,6 +93,14 @@ Full details, including the guide for the evidence feature, are in `docs/journey
 - Journey page: `getJourney` → `loadJourneyEntries` + `computeJourneyStats` (total work time, completed tasks, current/longest streak via `computeCurrentStreak`/`computeLongestStreak`, start day). Entries are collapsible (`components/project/journey/`). Records before 4.0 have no journal and show 旧バージョン.
 - Assistant: `list_journey` / `read_journey_entry` (`src/tools/`) return reflections and AI summaries, **never evidence**. The analysis prompt also gets the last 5 AI summaries (`toHistorySummary`).
 - The dashboard 記録一覧 dialog was removed; the dashboard links to the journey and to a pending report.
+
+### Work timer (MVP 4.5)
+- Four modes (`src/lib/timer/config.ts` `TIMER_CONFIG` / `TIMER_MODE_INFO`): ポモドーロ 25/5 (15-min long break every 4 completed sessions), 50/10, 10分スターター (10-min countdown, then count-up), フロータイム (count-up, suggests a 10-min break every `flowSuggestMin`, default 50).
+- The whole state is `records.timer` (jsonb `TimerState`, `src/lib/timer/types.ts`), changed only by `applyTimerEvent` (`src/lib/timer/machine.ts`, unit-tested) inside the `timerAction` server action, with server time and an `updated_at` check. `records.duration` mirrors focus ms (`totals.workMs`); `status` is `active` in work, `paused` otherwise. Pre-4.5 open records get `legacyTimer` (flowtime). The client only reads it: `timerView` (`view.ts`) + `useServerClock`.
+- Flow: tree スタート → `/onair?nodeId=` shows `TimerStartPanel` (picker) → `startTask(node, project, choice)` creates the record. No record is created during a page render.
+- Concepts: a session is a work interval between breaks (pauses don't split it). Breaks are scheduled (countdown) or custom (休憩する: hidden count-up, notice every 5 min). Pause (一時停止, optional reason) is not a break: not in focus, break or total (total = focus + break). Waiting at a 休憩しますか？ offer counts as break time; a skipped offer isn't a break.
+- Rules: a countdown session closes exactly at its scheduled end (`session_due`, whenever the client reports it). Pomodoro: a mid-session break voids the session for the long-break cycle. 50/10 and the starter resume the remaining time after a break. A scheduled break that runs over by at most `TIMER_BREAK_OVERRUN_GRACE_MS` (server-only, `server-config.ts`, default 10 s) ends on time; beyond, the whole overrun is break. The timer can change only in a break; `FREE_TIMER_CHANGES` (3), then every change resets all timer stats (`modeHistory` keeps every timer, `reset: true`). Leaving the starter is always free; after its 10 minutes the starter can't resume work without switching (`starter_switch` keeps the same session).
+- UI: `components/project/onair/onair-timer.tsx` + `onair/timer/` (picker, dialogs, `timer-notify.ts`: sonner + WebAudio beep + browser Notification when hidden). Summary: `components/project/timer/timer-summary.tsx`.
 
 ### Rewards / XP
 Full details are in `docs/reward-engine.md`, and the AI placeholder is covered in `docs/ai-review-integration.md`.
