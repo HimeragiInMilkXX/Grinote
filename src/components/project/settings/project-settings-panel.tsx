@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { useUnsavedSettings } from "./use-unsaved-settings";
+import ProjectColorPicker from "@/components/project/project-color-picker";
 
 const DurationPicker = dynamic( () => import( "react-duration-picker" ), {
     ssr: false,
@@ -307,6 +308,19 @@ const ProjectSettingsPanel = ( { project, hasActiveTask }: Props ) => {
                                             </label>
                                         ))}
                                     </div>
+                                    { fieldState.invalid && <FieldError errors={[ fieldState.error ]}/> }
+                                </Field>
+                            )}
+                        />
+
+                        <Controller
+                            name="color"
+                            control={form.control}
+                            render={ ( { field, fieldState } ) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel id="settings-color-label"> カラー </FieldLabel>
+                                    <ProjectColorPicker value={field.value} onChange={field.onChange} disabled={locked} aria-labelledby="settings-color-label" aria-invalid={fieldState.invalid}/>
+                                    { editing && <FieldDescription> ＊カレンダーやプロジェクト一覧で使われる色です </FieldDescription> }
                                     { fieldState.invalid && <FieldError errors={[ fieldState.error ]}/> }
                                 </Field>
                             )}

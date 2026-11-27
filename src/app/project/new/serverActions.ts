@@ -3,6 +3,7 @@
 import { NewProjectInformation } from "@/atoms/new_project_atom";
 import { createActionClient } from "@/utils/supabase/actions";
 import { randomUUID } from "node:crypto";
+import { isProjectColor } from "@/lib/projects/colors";
 
 export async function createNewProject( data: NewProjectInformation, work_days: number[], daily_time_goal: string ) {
 
@@ -13,6 +14,8 @@ export async function createNewProject( data: NewProjectInformation, work_days: 
     if( !user ) {
         throw new Error( "User not logged in" );
     }
+
+    if( !isProjectColor( data.color ) ) throw new Error( "Invalid project color" );
 
     const { data: returnData, error } = await supabase.from( 'projects' ).insert([ {
 

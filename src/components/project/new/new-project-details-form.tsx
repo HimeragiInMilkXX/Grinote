@@ -17,6 +17,8 @@ import { addWeeks, format } from "date-fns";
 import { useSetAtom } from "jotai";
 import { isLoadingAtom } from "@/components/miscellaneous/loading-overlay";
 import { WEEKDAYS } from "@/lib/projects/work-days";
+import { PROJECT_COLOR_KEYS, type ProjectColor } from "@/lib/projects/colors";
+import ProjectColorPicker from "@/components/project/project-color-picker";
 
 const DurationPicker = dynamic(() => import("react-duration-picker"), {
     ssr: false,
@@ -59,11 +61,12 @@ export const newProjectDetailsFormSchema = z.object({
         ).nonoptional(),
 
     description: z.string().optional(),
-    work_days: z.array(z.number()).min(1, { message: "Please select at least one day to grind" } ).nonoptional()
+    work_days: z.array(z.number()).min(1, { message: "Please select at least one day to grind" } ).nonoptional(),
+    color: z.enum( PROJECT_COLOR_KEYS, { message: "カラーを選んでください" } )
 
 })
 
-const NewProjectDetailsForm = () => {
+const NewProjectDetailsForm = ( { defaultColor }: { defaultColor: ProjectColor } ) => {
 
     const form = useForm({
 
@@ -75,7 +78,8 @@ const NewProjectDetailsForm = () => {
             daily_time_goal: { hours: 0, minutes: 0, seconds: 0 },
             achieve_date_goal: format(addWeeks( new Date(), 2 ), 'yyyy-MM-dd'),
             work_days: [],
-            description: ""
+            description: "",
+            color: defaultColor
         }
 
     })
@@ -227,6 +231,22 @@ const NewProjectDetailsForm = () => {
                                         <FieldError errors={[fieldState.error]} />
                                     )}
 
+                                </Field>
+                            )}
+                        />
+
+                        {/* Color */}
+                        <Controller
+                            name="color"
+                            control={form.control}
+                            render={ ( { field, fieldState } ) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel id="new-project-details-form-color-label"> カラー </FieldLabel>
+                                    <FieldDescription> ＊カレンダーでプロジェクトを見分けるための色です </FieldDescription>
+                                    <ProjectColorPicker value={field.value} onChange={field.onChange} aria-labelledby="new-project-details-form-color-label" aria-invalid={fieldState.invalid}/>
+                                    {fieldState.invalid && (
+                                        <FieldError errors={[fieldState.error]} />
+                                    )}
                                 </Field>
                             )}
                         />

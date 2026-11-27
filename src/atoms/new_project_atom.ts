@@ -2,6 +2,7 @@
 
 import { intervalToSeconds } from "@/utils/utils";
 import { atom, getDefaultStore } from "jotai";
+import { isProjectColor, type ProjectColor } from "@/lib/projects/colors";
 
 export type NewProjectInformationDraft = {
 
@@ -13,6 +14,7 @@ export type NewProjectInformationDraft = {
     name?: string;
     daily_time_goal?: { hours: number, minutes: number, seconds: number };
     work_days?: number[];
+    color?: ProjectColor;
 
 }
 
@@ -26,6 +28,7 @@ export type NewProjectInformation = {
     name: string;
     daily_time_goal: { hours: number, minutes: number, seconds: number };
     work_days: number[];
+    color: ProjectColor;
 
 }
 
@@ -64,7 +67,9 @@ export const isCompleteProjectInformation = ( draft: NewProjectInformationDraft 
         intervalToSeconds( draft.daily_time_goal ) >= 120 &&
 
         draft.work_days !== undefined &&
-        draft.work_days.length > 0
+        draft.work_days.length > 0 &&
+
+        isProjectColor( draft.color )
 
     )
 

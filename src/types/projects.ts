@@ -7,6 +7,8 @@ type Project = {
     character_name_changed_at: string | null;
     character_id: number;
     character_level: number;
+    /** palette key (src/lib/projects/colors.ts) */
+    color: import("@/lib/projects/colors").ProjectColor;
     character_xp: number;
     created_at: Date;
     daily_time_goal: string;

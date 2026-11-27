@@ -2,7 +2,7 @@ import LogoutButton from "@/components/auth/logout-button";
 import DashboardProjectList from "@/components/project/dashboard-project-list";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/server";
-import { Plus } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import Link from "next/link";
 import { hasDoneIntroduction } from "./serverActions";
 import ApproachTutorialDialog from "@/components/tutorial/approach/approach-tutorial-dialog";
@@ -26,6 +26,9 @@ const Dashboard = async () => {
             <section className="flex items-center justify-between gap-6">
                 <h2 className="text-xl"> Grinoteへようこそ </h2>
                 <div className="flex items-center gap-1.5">
+                    <Link href="/calendar" className={buttonVariants({ variant: "secondary" })} aria-label="カレンダー" title="カレンダー">
+                        <CalendarDays/>
+                    </Link>
                     <Link href="/project/new/goal" className={buttonVariants({ variant: "secondary" })} >
                         <Plus className=""/>
                     </Link>

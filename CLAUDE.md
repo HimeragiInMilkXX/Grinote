@@ -53,6 +53,10 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - Unsaved edits: `projectSettingsDirtyAtom` (read by `project-navigation.tsx`) plus `beforeunload` via `useUnsavedSettings`.
 - `work_days` is `smallint[]` of ISO weekdays (1 = Mon … 7 = Sun), sorted and unique, with a CHECK constraint. Use the helpers in `src/lib/projects/work-days.ts` (`WEEKDAYS`, `normalizeWorkDays`, `isWorkDay`, `workDayNames`).
 
+### Project colors and calendar
+- `projects.color` (required) is a palette key. The palette is `PROJECT_COLORS` in `src/lib/projects/colors.ts` (literal Tailwind classes: `solid`/`soft`/`dot`/`accent`); the CHECK `projects_color_check` (`supabase/migrations/20261127000001_project_color.sql`) lists the same keys, and `colors.test.ts` checks they match. `pickDefaultColor` preselects the first unused color in the wizard; `ProjectColorPicker` is shared by the wizard and settings. Color is a normal settings field (not in the guard trigger).
+- `/calendar` (link on `/dashboard`): weekly view of every project. Logic is pure in `src/lib/calendar/week.ts` (unit-tested): weeks start Monday, Tokyo days (`CALENDAR_TIMEZONE`), `CALENDAR_WEEKS_AROUND` (n, in `config.ts`) weeks on each side of the current one. A project is scheduled on its `work_days` from its creation day to `achieve_date_goal`; a non-abandoned record started or ended that day marks it worked (✓), work on an unplanned day is an `extra` (dashed) entry, and the goal day gets a flag. `getCalendarData` (`app/calendar/serverActions.ts`) loads everything for the range once; `components/calendar/weekly-calendar.tsx` pages through it with the embla `Carousel` (swipe/drag, buttons, ←/→, 今週). Blocks link to `/project/[id]/tree`.
+
 ### Route conventions
 Each route folder keeps its own `serverActions.ts` (`"use server"`, Supabase access) and `clientActions.ts` (client-only helpers) next to `page.tsx`. Shared domain types in `src/types/*.ts` (e.g. `Project`, `Character`) are mostly **ambient globals**, not exported, so they're used without imports.
 

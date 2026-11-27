@@ -11,6 +11,7 @@ const saved: ProjectSettingsSource = {
     work_days: [ 1, 3, 5 ],
     character_given_name: "Pochi",
     character_name_changed_at: null,
+    color: "teal",
 };
 
 const input = () => projectToSettingsInput( saved );
@@ -84,6 +85,19 @@ describe( "buildSettingsPatch", () => {
         const res = buildSettingsPatch( saved, { ...input(), name: "", achieve_date_goal: "2026-11-01" }, NOW );
         expect( res.ok ).toBe( false );
         if( !res.ok ) expect( Object.keys( res.errors ).sort() ).toEqual( [ "achieve_date_goal", "name" ] );
+    });
+
+    it( "patches a changed color and rejects unknown keys", () => {
+        expect( buildSettingsPatch( saved, { ...input(), color: "rose" }, NOW ) ).toEqual( { ok: true, patch: { color: "rose" } } );
+        const res = buildSettingsPatch( saved, { ...input(), color: "#ff0000" }, NOW );
+        expect( res.ok ).toBe( false );
+        if( !res.ok ) expect( Object.keys( res.errors ) ).toEqual( [ "color" ] );
+    });
+
+    it( "repairs an invalid stored color on save", () => {
+        const bad = { ...saved, color: "purple" };
+        expect( projectToSettingsInput( bad ).color ).toBe( "teal" );
+        expect( buildSettingsPatch( bad, projectToSettingsInput( bad ), NOW ) ).toEqual( { ok: true, patch: { color: "teal" } } );
     });
 
     it( "writes a daily goal when the saved one is missing", () => {

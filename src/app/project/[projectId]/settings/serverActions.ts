@@ -12,7 +12,7 @@ export type UpdateSettingsResult =
     | { ok: true; changed: string[] }
     | { ok: false; message: string; errors?: Partial<Record<SettingsField, string>> };
 
-const SETTINGS_COLUMNS = "id, name, description, achieve_date_goal, daily_time_goal, work_days, character_given_name, character_name_changed_at";
+const SETTINGS_COLUMNS = "id, name, description, achieve_date_goal, daily_time_goal, work_days, character_given_name, character_name_changed_at, color";
 
 async function hasActiveTask( supabase: SupabaseClient, project_id: string ) {
 

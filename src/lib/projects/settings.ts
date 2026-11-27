@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import type { DurationObject } from "@/types/global";
 import { durationObjectToInterval, intervalToDurationObject, intervalToSeconds } from "@/utils/utils";
 import { normalizeWorkDays, sameWorkDays, type Weekday } from "./work-days";
+import { isProjectColor, PROJECT_COLOR_KEYS, PROJECT_COLORS, type ProjectColor } from "./colors";
 
 /**
  * Editable project settings. `final_goal`, `character_id` and the character's
@@ -24,6 +25,7 @@ export type ProjectSettingsInput = {
     daily_time_goal: DurationObject;
     work_days: number[];
     character_given_name: string;
+    color: ProjectColor;
 };
 
 /** The columns this feature reads from a `projects` row. */
@@ -35,6 +37,7 @@ export type ProjectSettingsSource = {
     work_days: number[] | null;
     character_given_name: string | null;
     character_name_changed_at: string | null;
+    color: string | null;
 };
 
 export type ProjectSettingsPatch = Partial<{
@@ -44,6 +47,7 @@ export type ProjectSettingsPatch = Partial<{
     daily_time_goal: string;
     work_days: Weekday[];
     character_given_name: string;
+    color: ProjectColor;
 }>;
 
 export type SettingsField = keyof ProjectSettingsInput;
@@ -79,6 +83,7 @@ export const projectSettingsSchema = z.object({
     daily_time_goal: durationSchema,
     work_days: z.array( z.number() ).refine( days => normalizeWorkDays( days ).length > 0, "少なくとも1つの曜日を選んでください" ),
     character_given_name: z.string().trim().min( 1, "キャラクターネームを入力してください" ).max( CHARACTER_NAME_MAX, `${CHARACTER_NAME_MAX}文字以内で入力してください` ),
+    color: z.enum( PROJECT_COLOR_KEYS, { message: "カラーを選んでください" } ),
 });
 
 export function todayString( now: Date = new Date() ) {
@@ -97,6 +102,7 @@ export function projectToSettingsInput( project: ProjectSettingsSource ): Projec
         daily_time_goal: project.daily_time_goal ? intervalToDurationObject( project.daily_time_goal ) : { hours: 0, minutes: 0, seconds: 0 },
         work_days: normalizeWorkDays( project.work_days ),
         character_given_name: project.character_given_name ?? "",
+        color: isProjectColor( project.color ) ? project.color : PROJECT_COLORS[0].key,
     };
 
 }
@@ -162,6 +168,8 @@ export function buildSettingsPatch( current: ProjectSettingsSource, input: unkno
     if( !sameWorkDays( next.work_days, current.work_days ) ) patch.work_days = normalizeWorkDays( next.work_days );
 
     if( next.character_given_name !== saved.character_given_name ) patch.character_given_name = next.character_given_name;
+
+    if( next.color !== current.color ) patch.color = next.color;
 
     return { ok: true, patch };
 
