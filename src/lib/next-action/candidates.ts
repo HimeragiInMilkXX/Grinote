@@ -73,7 +73,7 @@ export function nodeStates( rows: readonly PlanNodeRow[] ): Map<string, NodeStat
 
 }
 
-function pathOf( row: PlanNodeRow, byId: Map<string, PlanNodeRow> ): string[] {
+export function pathOf( row: PlanNodeRow, byId: Map<string, PlanNodeRow> ): string[] {
 
     const path: string[] = [];
     const seen = new Set<string>( [ row.id ] );
@@ -114,7 +114,7 @@ export function buildCandidates( rows: readonly PlanNodeRow[] ): PlanCandidate[]
 }
 
 /** Depth-first order from the root(s); nodes that aren't reachable come last. */
-function treeOrder( rows: readonly PlanNodeRow[] ): PlanNodeRow[] {
+export function treeOrder( rows: readonly PlanNodeRow[] ): PlanNodeRow[] {
 
     const children = childrenMap( rows );
     const out: PlanNodeRow[] = [];

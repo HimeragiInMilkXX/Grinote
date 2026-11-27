@@ -3,17 +3,19 @@
 import { getCalenderWeekDifference } from '@/utils/utils';
 import { useCallback, useState } from 'react';
 import ProgressPanelDayCard from './progress-panel-day-card';
-import { addWeeks, eachDayOfInterval, endOfWeek, startOfWeek } from 'date-fns';
+import { addWeeks, eachDayOfInterval, endOfWeek, format, startOfWeek } from 'date-fns';
 import ProgressPanelWeekStepper from './progress-panel-week-stepper';
 import { WEEKDAYS } from '@/lib/projects/work-days';
 
 interface Props {
 
     project: Project;
+    /** schedule per day key (pending entries; past days count 0, they carry over to today) */
+    scheduleCounts: Record<string, { pending: number; done: number }>;
 
 }
 
-const ProjectDashboardProgressPanel = ( { project }: Props ) => {
+const ProjectDashboardProgressPanel = ( { project, scheduleCounts }: Props ) => {
 
     const today = new Date();
 
@@ -60,6 +62,7 @@ const ProjectDashboardProgressPanel = ( { project }: Props ) => {
                         isWorkDay={project.work_days?.includes( day.value ) ?? false}
                         project_id={project.id}
                         startDate={project.created_at}
+                        scheduledPending={ scheduleCounts[ format( weekDates[i], "yyyy-MM-dd" ) ]?.pending ?? 0 }
                     />
                 ))
 

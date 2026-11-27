@@ -5,6 +5,8 @@ import NextActionPlan from "@/components/next-action/next-action-plan";
 import { Button } from "@/components/ui/button";
 import { clearSavedNextAction, type NextActionState } from "@/lib/next-action/actions";
 import type { NextActionView } from "@/lib/next-action/types";
+import { dayLabel } from "@/lib/next-action/labels";
+import type { ScheduleGate } from "@/lib/schedule/gate";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -20,10 +22,12 @@ type Props = {
     hasActiveTask: boolean;
     /** a finished task still waits for its report */
     hasPendingReport: boolean;
+    /** closed = the schedule already covers today / the next day (the button still works) */
+    scheduleGate: ScheduleGate;
 };
 
 /** Project dashboard: the current next action with スタート buttons (→ timer picker). */
-const ProjectDashboardNextAction = ( { projectId, saved: initialSaved, hasDraft: initialHasDraft, candidateCount, todayKey: initialToday, hasActiveTask, hasPendingReport }: Props ) => {
+const ProjectDashboardNextAction = ( { projectId, saved: initialSaved, hasDraft: initialHasDraft, candidateCount, todayKey: initialToday, hasActiveTask, hasPendingReport, scheduleGate }: Props ) => {
 
     const [ open, setOpen ] = useState( false );
     const [ saved, setSaved ] = useState( initialSaved );
@@ -64,6 +68,12 @@ const ProjectDashboardNextAction = ( { projectId, saved: initialSaved, hasDraft:
                     </div>
                 ) }
             </div>
+
+            { !scheduleGate.allowed && (
+                <p className="text-xs text-muted-foreground">
+                    スケジュール済みのタスクがあります（{ dayLabel( scheduleGate.nextDayKey, todayKey ) }に{ scheduleGate.nextDayPending }件）。自動のおすすめは表示されませんが、ここから作成できます。
+                </p>
+            ) }
 
             { saved && (
                 <>

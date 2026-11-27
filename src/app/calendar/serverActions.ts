@@ -5,9 +5,12 @@ import { buildCalendarWeeks, calendarRange, workedDaysByProject, type CalendarPr
 import { isProjectColor, PROJECT_COLORS, type ProjectColor } from "@/lib/projects/colors";
 import { addDaysToKey, dateKeyInZone, startOfDayKey } from "@/lib/rewards/streaks";
 import { createClient, requireUser } from "@/utils/supabase/server";
-import { buildNextActionDays, type CalendarPlan, type NextActionDay } from "@/lib/calendar/next-actions";
+import type { CalendarPlan, CalendarScheduleEntry, DayPanelProjectInput } from "@/lib/calendar/day-panel";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanKind } from "@/lib/next-action/config";
+import { PLAN_NODE_SELECT, type PlanNodeRow } from "@/lib/next-action/candidates";
+import { buildEntries, buildScheduleNodes } from "@/lib/schedule/rules";
+import { SCHEDULE_ITEM_SELECT, type ScheduleItemRow } from "@/lib/schedule/types";
 
 export type CalendarLegendItem = { id: string; name: string; color: ProjectColor };
 
@@ -16,8 +19,10 @@ export type CalendarData = {
     todayKey: string;
     weeksAround: number;
     legend: CalendarLegendItem[];
-    /** 今日 / 明日 next actions of every project */
-    nextActionDays: NextActionDay[];
+    /** for the focused-day panel (src/lib/calendar/day-panel.ts) */
+    panelProjects: DayPanelProjectInput[];
+    plans: CalendarPlan[];
+    scheduleEntries: CalendarScheduleEntry[];
 };
 
 type SavedPlanRow = {
@@ -79,6 +84,59 @@ async function loadCalendarPlans( supabase: SupabaseClient, userId: string ): Pr
 
 }
 
+/**
+ * Schedule entries of every project: all unfinished ones (they may carry over or lie far ahead)
+ * plus the done ones from `firstKey` on. Names and tree order come from each project's tree.
+ * Never throws (the calendar still works without the schedule, e.g. before the migration).
+ */
+async function loadCalendarSchedule( supabase: SupabaseClient, userId: string, projectIds: string[], firstKey: string, todayKey: string ): Promise<CalendarScheduleEntry[]> {
+
+    if( projectIds.length === 0 ) return [];
+
+    try {
+
+        const [ itemsRes, nodesRes ] = await Promise.all( [
+            supabase.from( "schedule_items" ).select( SCHEDULE_ITEM_SELECT )
+                .eq( "user_id", userId )
+                .or( `done_at.is.null,scheduled_for.gte.${firstKey}` ),
+            supabase.from( "nodes" ).select( `project_id, ${PLAN_NODE_SELECT}` ).in( "project_id", projectIds ),
+        ] );
+
+        if( itemsRes.error ) throw new Error( itemsRes.error.message );
+        if( nodesRes.error ) throw new Error( nodesRes.error.message );
+
+        const items = ( itemsRes.data ?? [] ) as ScheduleItemRow[];
+        const nodesOf = new Map<string, PlanNodeRow[]>();
+        for( const row of ( nodesRes.data ?? [] ) as unknown as ( PlanNodeRow & { project_id: string } )[] ) {
+            const list = nodesOf.get( row.project_id ) ?? [];
+            list.push( row );
+            nodesOf.set( row.project_id, list );
+        }
+
+        return projectIds.flatMap( projectId => {
+            const own = items.filter( i => i.project_id === projectId );
+            if( own.length === 0 ) return [];
+            return buildEntries( own, buildScheduleNodes( nodesOf.get( projectId ) ?? [] ), todayKey ).map( e => ( {
+                id: e.id,
+                projectId,
+                nodeId: e.nodeId,
+                name: e.name,
+                dayKey: e.dayKey,
+                state: e.state,
+                isLoop: e.isLoop,
+                order: e.order,
+            } ) );
+        } );
+
+    } catch( e ) {
+
+        console.error( "[calendar] schedule", e instanceof Error ? e.message : e );
+        return [];
+
+    }
+
+}
+
 /** All of the user's projects laid out on the weeks around today (CALENDAR_WEEKS_AROUND on each side). */
 export async function getCalendarData(): Promise<CalendarData> {
 
@@ -121,7 +179,10 @@ export async function getCalendarData(): Promise<CalendarData> {
         achieve_date_goal: p.achieve_date_goal,
     } ) );
 
-    const plans = await loadCalendarPlans( supabase, user.id );
+    const [ plans, scheduleEntries ] = await Promise.all( [
+        loadCalendarPlans( supabase, user.id ),
+        loadCalendarSchedule( supabase, user.id, projects.map( p => p.id ), firstKey, todayKey ),
+    ] );
 
     const workedDays = workedDaysByProject( recordRows ?? [], date => dateKeyInZone( date, CALENDAR_TIMEZONE ) );
 
@@ -129,7 +190,9 @@ export async function getCalendarData(): Promise<CalendarData> {
         weeks: buildCalendarWeeks( { projects, workedDays, todayKey, weeksAround } ),
         todayKey,
         weeksAround,
-        nextActionDays: buildNextActionDays( { projects, plans, todayKey } ),
+        panelProjects: projects.map( p => ( { id: p.id, name: p.name, color: p.color, work_days: p.work_days, achieve_date_goal: p.achieve_date_goal } ) ),
+        plans,
+        scheduleEntries,
         legend: projects.map( p => ( { id: p.id, name: p.name, color: isProjectColor( p.color ) ? p.color : PROJECT_COLORS[0].key } ) ),
     };
 

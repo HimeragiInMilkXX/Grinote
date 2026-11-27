@@ -19,7 +19,7 @@ import NodeDataConfirmPanel from "@/components/flow/node-data-confirm-panel";
 import { getLayoutedElements } from "@/app/project/[projectId]/tree/clientActions";
 import { toast } from "sonner";
 import FlowProcessLoading from "@/components/flow/flow-process-loading";
-import { atom, useAtom, useSetAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { treeRequiresSaveActionAtom } from "@/atoms/tree_requires_save_action_atom";
 import { isLoadingAtom } from "../miscellaneous/loading-overlay";
 import { useTutorialStep } from "@/hooks/useTutorialStep";
@@ -33,6 +33,10 @@ import NextActionDialog from "@/components/next-action/next-action-dialog";
 import { afterTreeSave } from "@/lib/next-action/actions";
 import { planHighlights } from "@/lib/next-action/resolve";
 import type { PlanItemRole } from "@/lib/next-action/types";
+import { scheduleTodayHighlightAtom, scheduleVersionAtom } from "@/atoms/schedule_atoms";
+import { getScheduleView } from "@/lib/schedule/actions";
+import { todayHighlights } from "@/lib/schedule/days";
+import type { ScheduleHighlight } from "@/lib/schedule/types";
 
 const nodeTypes = {
     taskNode: TaskNode
@@ -52,6 +56,8 @@ interface FlowClientProps {
     isInitialEditMode?: boolean
     /** nodes of the saved next action (highlighted) */
     nextActionHighlights?: Record<string, PlanItemRole>
+    /** nodes with pending schedule entries today (highlighted) */
+    scheduleHighlights?: Record<string, ScheduleHighlight>
 
 }
 
@@ -131,7 +137,7 @@ const FlowNotice = ( { children }: { children: React.ReactNode } ) => (
     </Panel>
 )
 
-function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNodes, project_id, isInitialEditMode = true, nextActionHighlights }: FlowClientProps ) {
+function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNodes, project_id, isInitialEditMode = true, nextActionHighlights, scheduleHighlights }: FlowClientProps ) {
 
     // For onboarding
     const advanceTutorial = useTutorialStep( project_id );
@@ -154,6 +160,24 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
         return () => setNextActionHighlights( {} );
     }, [ nextActionHighlights, setNextActionHighlights ] );
     const [ nextActionOpen, setNextActionOpen ] = useState( false );
+
+    // Today's schedule: highlighted nodes, reloaded after a save or when the assistant changes the schedule
+    const setScheduleHighlights = useSetAtom( scheduleTodayHighlightAtom );
+    useEffect( () => {
+        setScheduleHighlights( scheduleHighlights ?? {} );
+        return () => setScheduleHighlights( {} );
+    }, [ scheduleHighlights, setScheduleHighlights ] );
+    const reloadScheduleHighlights = () => {
+        getScheduleView( project_id ).then( res => {
+            if( res.ok ) setScheduleHighlights( todayHighlights( res.view.entries, res.view.todayKey ) );
+        } );
+    };
+    const scheduleVersion = useAtomValue( scheduleVersionAtom );
+    const firstScheduleVersion = useRef( scheduleVersion );
+    useEffect( () => {
+        if( scheduleVersion !== firstScheduleVersion.current ) reloadScheduleHighlights();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ scheduleVersion ] );
 
     const canEdit = !hasActiveTask && isEditMode;
 
@@ -598,6 +622,8 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
                 setNextActionHighlights( highlights );
                 if( ask && hadChanges ) setNextActionOpen( true );
             } );
+            // deleting a node also deletes its schedule entries
+            if( hadChanges ) reloadScheduleHighlights();
 
         } catch {
 

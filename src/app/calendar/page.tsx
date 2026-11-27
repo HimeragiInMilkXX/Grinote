@@ -1,5 +1,4 @@
-import WeeklyCalendar from "@/components/calendar/weekly-calendar";
-import NextActionPanel from "@/components/calendar/next-action-panel";
+import CalendarView from "@/components/calendar/calendar-view";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
@@ -7,7 +6,7 @@ import { getCalendarData } from "./serverActions";
 
 const CalendarPage = async () => {
 
-    const { weeks, weeksAround, legend, nextActionDays, todayKey } = await getCalendarData();
+    const data = await getCalendarData();
 
     return (
 
@@ -20,7 +19,7 @@ const CalendarPage = async () => {
                 <h2 className="text-xl font-medium"> カレンダー </h2>
             </section>
 
-            { legend.length === 0 ? (
+            { data.legend.length === 0 ? (
 
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-10 text-center">
                     <p className="text-sm text-muted-foreground"> まだプロジェクトがありません。プロジェクトを作ると、取り組む曜日がここに表示されます。 </p>
@@ -29,10 +28,7 @@ const CalendarPage = async () => {
 
             ) : (
 
-                <>
-                    <WeeklyCalendar weeks={weeks} initialIndex={weeksAround} legend={legend}/>
-                    <NextActionPanel days={nextActionDays} todayKey={todayKey}/>
-                </>
+                <CalendarView data={data}/>
 
             )}
 

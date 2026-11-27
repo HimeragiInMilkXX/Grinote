@@ -8,9 +8,11 @@ type Props = {
     entry: CalendarEntry;
     /** the day is before today */
     isPast: boolean;
+    /** unfinished scheduled tasks of the project on this day */
+    pendingCount?: number;
 };
 
-function describe( entry: CalendarEntry, isPast: boolean ) {
+function describe( entry: CalendarEntry, isPast: boolean, pendingCount: number ) {
 
     const parts = [ entry.name ];
 
@@ -19,17 +21,18 @@ function describe( entry: CalendarEntry, isPast: boolean ) {
     else if( entry.kind === "scheduled" ) parts.push( isPast ? "未実施" : "予定" );
 
     if( entry.isGoalDay ) parts.push( "目標達成日" );
+    if( pendingCount > 0 ) parts.push( `予定のタスク${pendingCount}件` );
 
     return parts.join( " ・ " );
 
 }
 
 /** One project block; opens the project's goal tree to pick and start a task. */
-const CalendarEntryBlock = ( { entry, isPast }: Props ) => {
+const CalendarEntryBlock = ( { entry, isPast, pendingCount = 0 }: Props ) => {
 
     const style = projectColorStyle( entry.color );
     const missed = entry.kind === "scheduled" && isPast && !entry.worked;
-    const label = describe( entry, isPast );
+    const label = describe( entry, isPast, pendingCount );
 
     return (
 
@@ -46,6 +49,7 @@ const CalendarEntryBlock = ( { entry, isPast }: Props ) => {
             )}
         >
             <span className="min-w-0 flex-1 truncate">{ entry.name }</span>
+            { pendingCount > 0 && <span aria-hidden className="shrink-0 rounded-full bg-background/90 px-1.5 text-[0.65rem] leading-4 text-foreground tabular-nums">{ pendingCount }</span> }
             { entry.worked && <Check aria-hidden size={14} strokeWidth={3} className="shrink-0"/> }
             { entry.isGoalDay && <Flag aria-hidden size={13} className="shrink-0"/> }
         </Link>

@@ -17,6 +17,8 @@ import { matchCompletedNode, resolvePlan } from "./resolve";
 import { isWorkDayKey, nextWorkDayKey, todayFocusMs, type ScheduleContext } from "./schedule";
 import type { NextActionRow, NextActionView } from "./types";
 import { sanitizeUserText } from "@/lib/journey/prompt";
+import { loadScheduleGate } from "@/lib/schedule/data";
+import { OPEN_GATE, type ScheduleGate } from "@/lib/schedule/gate";
 
 const TZ = NEXT_ACTION_TIMEZONE;
 
@@ -235,6 +237,8 @@ export interface NextActionSummary {
     hasDraft: boolean;
     candidateCount: number;
     todayKey: string;
+    /** may the next action pop up by itself (the schedule leaves a gap)? see src/lib/schedule/gate.ts */
+    scheduleGate: ScheduleGate;
 }
 
 /**
@@ -248,19 +252,24 @@ export async function loadNextActionSummary( supabase: SupabaseClient, projectId
     try {
 
         const rows = await loadPlanNodes( supabase, projectId );
-        const [ savedRow, draftRow ] = await Promise.all( [ loadSavedRow( supabase, projectId ), loadDraftRow( supabase, projectId ) ] );
+        const [ savedRow, draftRow, scheduleGate ] = await Promise.all( [
+            loadSavedRow( supabase, projectId ),
+            loadDraftRow( supabase, projectId ),
+            loadScheduleGate( supabase, projectId, rows ),
+        ] );
 
         return {
             saved: savedRow ? resolvePlan( savedRow, rows, todayKey ) : null,
             hasDraft: !!draftRow,
             candidateCount: buildCandidates( rows ).length,
             todayKey,
+            scheduleGate,
         };
 
     } catch( e ) {
 
         console.error( "[next-action] loadNextActionSummary", e instanceof Error ? e.message : e );
-        return { saved: null, hasDraft: false, candidateCount: 0, todayKey };
+        return { saved: null, hasDraft: false, candidateCount: 0, todayKey, scheduleGate: OPEN_GATE( todayKey ) };
 
     }
 

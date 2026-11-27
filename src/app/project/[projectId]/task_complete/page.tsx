@@ -53,7 +53,7 @@ const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/pr
                 </div>
                 <NextActionPrompt
                     projectId={projectId}
-                    autoOpen={firstView}
+                    autoOpen={ firstView && nextAction.scheduleGate.allowed }
                     candidateCount={nextAction.candidateCount}
                     saved={nextAction.saved}
                     todayKey={nextAction.todayKey}/>

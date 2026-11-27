@@ -23,11 +23,12 @@ import { MaterialReadPart } from "./parts/material-read-part"
 import { JourneyReadPart } from "./parts/journey-read-part"
 import { ProposeMaterialsPart } from "./parts/propose-materials-part"
 import { DraftMemoPart } from "./parts/draft-memo-part"
+import { ProposeSchedulePart, ScheduleReadPart } from "./parts/schedule-parts"
 
 type StepPart = Extract<
   ChatMessagePart,
   {
-    type: "reasoning" | "tool-github_repo" | "tool-ask_user" | "tool-web_search" | "tool-propose_goal_tree" | "tool-get_project_info" | "tool-get_graph_info" | "tool-list_materials" | "tool-read_material" | "tool-propose_materials" | "tool-draft_memo" | "tool-list_journey" | "tool-read_journey_entry"
+    type: "reasoning" | "tool-github_repo" | "tool-ask_user" | "tool-web_search" | "tool-propose_goal_tree" | "tool-get_project_info" | "tool-get_graph_info" | "tool-list_materials" | "tool-read_material" | "tool-propose_materials" | "tool-draft_memo" | "tool-list_journey" | "tool-read_journey_entry" | "tool-list_schedule" | "tool-propose_schedule"
   }
 >
 
@@ -162,6 +163,22 @@ export function ChatMessage({
                         isStreaming={isStreaming}
                       />
                     )
+                  case "tool-list_schedule":
+                    return (
+                      <ScheduleReadPart
+                        key={part.toolCallId}
+                        part={part}
+                        isStreaming={isStreaming}
+                      />
+                    )
+                  case "tool-propose_schedule":
+                    return (
+                      <ProposeSchedulePart
+                        key={part.toolCallId}
+                        part={part}
+                        isStreaming={isStreaming}
+                      />
+                    )
                 }
               })}
             </Trace>
@@ -231,7 +248,9 @@ function isStepPart(part: ChatMessagePart): part is StepPart {
     part.type === "tool-propose_materials" ||
     part.type === "tool-draft_memo" ||
     part.type === "tool-list_journey" ||
-    part.type === "tool-read_journey_entry"
+    part.type === "tool-read_journey_entry" ||
+    part.type === "tool-list_schedule" ||
+    part.type === "tool-propose_schedule"
   )
 }
 

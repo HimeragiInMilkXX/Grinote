@@ -17,6 +17,8 @@ import { proposeMaterials } from "./propose_materials"
 import { draftMemo } from "./draft_memo"
 import { listJourney } from "./list_journey"
 import { readJourneyEntry } from "./read_journey_entry"
+import { listSchedule } from "./list_schedule"
+import { proposeSchedule } from "./propose_schedule"
 
 const baseTools = {
   github_repo: githubRepo,
@@ -31,6 +33,8 @@ const baseTools = {
   draft_memo: draftMemo,
   list_journey: listJourney,
   read_journey_entry: readJourneyEntry,
+  list_schedule: listSchedule,
+  propose_schedule: proposeSchedule,
 }
 
 export function getTools(modelId: string) {
@@ -121,4 +125,14 @@ export type ListJourneyToolPart = Extract<
 export type ReadJourneyEntryToolPart = Extract<
   ChatMessagePart,
   { type: "tool-read_journey_entry" }
+>
+
+export type ListScheduleToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-list_schedule" }
+>
+
+export type ProposeScheduleToolPart = Extract<
+  ChatMessagePart,
+  { type: "tool-propose_schedule" }
 >

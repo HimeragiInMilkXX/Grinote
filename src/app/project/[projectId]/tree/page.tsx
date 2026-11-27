@@ -5,6 +5,7 @@ import FlowClient from "@/components/flow/flow-client";
 import { fetchGraph, saveGraphToNodes } from "./serverActions";
 import { loadNextActionSummary } from "@/lib/next-action/data";
 import { planHighlights } from "@/lib/next-action/resolve";
+import { loadTodayScheduleHighlights } from "@/lib/schedule/data";
 import { createClient } from "@/utils/supabase/server";
 
 type Props = {
@@ -34,11 +35,15 @@ const ProjectPageTree = async ( { searchParams, params }: Props ) => {
 
     const { nodes, edges } = await fetchGraph(projectId);
 
-    const nextAction = await loadNextActionSummary( await createClient(), projectId );
+    const supabase = await createClient();
+    const [ nextAction, scheduleHighlights ] = await Promise.all( [
+        loadNextActionSummary( supabase, projectId ),
+        loadTodayScheduleHighlights( supabase, projectId ),
+    ] );
 
     return (
         <ReactFlowProvider>
-            <FlowClient hasActiveTask={!!activeTask || !!pendingReport} saveGraphToNodes={saveGraphToNodes} isInitialEditMode={isInitialEditMode} initialNodes={nodes} initialEdges={edges} project_id={projectId} nextActionHighlights={planHighlights( nextAction.saved )}/>
+            <FlowClient hasActiveTask={!!activeTask || !!pendingReport} saveGraphToNodes={saveGraphToNodes} isInitialEditMode={isInitialEditMode} initialNodes={nodes} initialEdges={edges} project_id={projectId} nextActionHighlights={planHighlights( nextAction.saved )} scheduleHighlights={scheduleHighlights}/>
         </ReactFlowProvider>
     )
 }

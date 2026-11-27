@@ -12,10 +12,12 @@ type Props = {
     isWorkDay: boolean;
     project_id: string;
     startDate: Date;
+    /** unfinished scheduled tasks of the day (today includes carried ones) */
+    scheduledPending: number;
 
 }
 
-const ProgressPanelDayCard = ( { project_id, today, date, label, isWorkDay, startDate }: Props ) => {
+const ProgressPanelDayCard = ( { project_id, today, date, label, isWorkDay, startDate, scheduledPending }: Props ) => {
 
     const [ records, setRecords ] = useState<OnAirRecord[]>([])
 
@@ -41,6 +43,8 @@ const ProgressPanelDayCard = ( { project_id, today, date, label, isWorkDay, star
                 <p>{label}</p>
 
                 { isSameDay( today, date ) && <p>今日</p> }
+
+                { scheduledPending > 0 && <p className="text-sm text-primary" title="まだ終わっていない予定"> 予定 残り{scheduledPending} </p> }
 
                 {
 

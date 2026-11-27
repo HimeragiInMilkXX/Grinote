@@ -15,6 +15,10 @@ type Props = {
     /** index of the current week in `weeks` */
     initialIndex: number;
     legend: CalendarLegendItem[];
+    selectedKey?: string;
+    onSelectDay?: ( key: string ) => void;
+    /** unfinished scheduled tasks per "projectId|dayKey" */
+    pending?: ReadonlyMap<string, number>;
 };
 
 function parseKey( key: string ) {
@@ -48,7 +52,7 @@ function relativeLabel( offset: number ) {
  * Weekly calendar of every project's work days. One carousel slide per week (swipe / drag,
  * buttons or ←/→), limited to the weeks the server built (CALENDAR_WEEKS_AROUND each side).
  */
-const WeeklyCalendar = ( { weeks, initialIndex, legend }: Props ) => {
+const WeeklyCalendar = ( { weeks, initialIndex, legend, selectedKey, onSelectDay, pending }: Props ) => {
 
     const [ api, setApi ] = useState<CarouselApi>();
     const [ index, setIndex ] = useState( initialIndex );
@@ -98,7 +102,7 @@ const WeeklyCalendar = ( { weeks, initialIndex, legend }: Props ) => {
                 <CarouselContent className="ml-0 items-start" style={{ transform: `translate3d(${ -100 * initialIndex }%, 0, 0)` }}>
                     { weeks.map( w => (
                         <CarouselItem key={w.startKey} className="p-1" aria-label={formatWeekRange( w.startKey, w.endKey )} aria-hidden={ w.offset !== week.offset } inert={ w.offset !== week.offset }>
-                            <WeekGrid week={w}/>
+                            <WeekGrid week={w} selectedKey={selectedKey} onSelectDay={onSelectDay} pending={pending}/>
                         </CarouselItem>
                     ))}
                 </CarouselContent>
@@ -120,7 +124,8 @@ const WeeklyCalendar = ( { weeks, initialIndex, legend }: Props ) => {
                     <li className="flex items-center gap-1"><span aria-hidden className="h-3 w-5 rounded-sm bg-slate-600 opacity-45"/> 未実施</li>
                     <li className="flex items-center gap-1"><span aria-hidden className="h-3 w-5 rounded-sm border border-dashed border-slate-500 bg-slate-50"/> 予定外の作業</li>
                     <li className="flex items-center gap-1"><Flag size={12}/> 目標達成日</li>
-                    <li> ブロックを押すとゴールツリーが開きます </li>
+                    <li className="flex items-center gap-1"><span aria-hidden className="rounded-full border bg-background px-1.5 text-[0.65rem] text-foreground">2</span> 残りの予定タスク</li>
+                    <li> 日付を押すとその日の予定を下に表示・ブロックを押すとゴールツリーが開きます </li>
                 </ul>
 
             </div>

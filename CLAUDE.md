@@ -32,7 +32,7 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - `actions.ts` `createActionClient()`: for Server Actions that write or change auth. It writes cookies.
 - `client.ts`: browser client. `middleware.ts`: used by `proxy.ts`.
 - Auth guards: `redirectIfNotAuthenticated(path)` / `redirectIfAuthenticated` in `src/utils/`, called from layouts.
-- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `next_actions`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
+- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `next_actions`, `schedule_items`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
 
 ### Materials
 - `materials` has `is_favourite` and `pinned_at` (null = not pinned; pins are ordered by it). The pin limit is `MATERIAL_PIN_LIMIT` in `src/lib/materials/config.ts`, enforced in `setMaterialPinned`. `getProjectMaterials` excludes pinned rows; `getPinnedMaterials` lists them above the table regardless of search/filter.
@@ -55,12 +55,12 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 
 ### Project colors and calendar
 - `projects.color` (required) is a palette key. The palette is `PROJECT_COLORS` in `src/lib/projects/colors.ts` (literal Tailwind classes: `solid`/`soft`/`dot`/`accent`); the CHECK `projects_color_check` (`supabase/migrations/20261127000001_project_color.sql`) lists the same keys, and `colors.test.ts` checks they match. `pickDefaultColor` preselects the first unused color in the wizard; `ProjectColorPicker` is shared by the wizard and settings. Color is a normal settings field (not in the guard trigger).
-- `/calendar` (link on `/dashboard`): weekly view of every project. Logic is pure in `src/lib/calendar/week.ts` (unit-tested): weeks start Monday, Tokyo days (`CALENDAR_TIMEZONE`), `CALENDAR_WEEKS_AROUND` (n, in `config.ts`) weeks on each side of the current one. A project is scheduled on its `work_days` from its creation day to `achieve_date_goal`; a non-abandoned record started or ended that day marks it worked (✓), work on an unplanned day is an `extra` (dashed) entry, and the goal day gets a flag. `getCalendarData` (`app/calendar/serverActions.ts`) loads everything for the range once; `components/calendar/weekly-calendar.tsx` pages through it with the embla `Carousel` (swipe/drag, buttons, ←/→, 今週). Blocks link to `/project/[id]/tree`.
+- `/calendar` (link on `/dashboard`): weekly view of every project. Logic is pure in `src/lib/calendar/week.ts` (unit-tested): weeks start Monday, Tokyo days (`CALENDAR_TIMEZONE`), `CALENDAR_WEEKS_AROUND` (n, in `config.ts`) weeks on each side of the current one. A project is scheduled on its `work_days` from its creation day to `achieve_date_goal`; a non-abandoned record started or ended that day marks it worked (✓), work on an unplanned day is an `extra` (dashed) entry, and the goal day gets a flag. `getCalendarData` (`app/calendar/serverActions.ts`) loads everything for the range once; `components/calendar/weekly-calendar.tsx` pages through it with the embla `Carousel` (swipe/drag, buttons, ←/→, 今週). Blocks link to `/project/[id]/tree` and show a badge with the project's unfinished scheduled tasks. Day headers select the focused day (`calendar-view.tsx`, default today); the panel below is `buildDayPanel` (`src/lib/calendar/day-panel.ts`) + `components/calendar/day-task-panel.tsx` (see the schedule section).
 
 ### Route conventions
 Each route folder keeps its own `serverActions.ts` (`"use server"`, Supabase access) and `clientActions.ts` (client-only helpers) next to `page.tsx`. Shared domain types in `src/types/*.ts` (e.g. `Project`, `Character`) are mostly **ambient globals**, not exported, so they're used without imports.
 
-Main routes: `(auth)/login|signup`, `dashboard` (project list), `project/new/{goal,details,character,complete}` (a wizard whose state lives in `new_project_atom`), and `project/[projectId]/{dashboard,tree,materials,onair,task_report,task_complete,journey,character,settings}`. `project/[projectId]/layout.tsx` loads the project, then mounts the navigation, the tutorial panel, and the assistant (`ChatProvider` + `AssistantDrawer`).
+Main routes: `(auth)/login|signup`, `dashboard` (project list), `project/new/{goal,details,character,complete}` (a wizard whose state lives in `new_project_atom`), and `project/[projectId]/{dashboard,tree,schedule,materials,onair,task_report,task_complete,journey,character,settings}`. `project/[projectId]/layout.tsx` loads the project, then mounts the navigation, the tutorial panel, and the assistant (`ChatProvider` + `AssistantDrawer`).
 
 ### Goal tree
 - Client: `src/components/flow/` (`flow-client.tsx`, `task-node.tsx`). Nodes are `TaskNodeType = Node<{label, task: Task}, 'taskNode'>` (`src/types/flow.ts`). Auto-layout uses dagre (`tree/clientActions.ts`).
@@ -114,14 +114,25 @@ Full details are in `docs/next-action.md`.
 - Triggers:
   - The task_complete page (`NextActionPrompt`) auto-opens on the first view.
   - A tree save with changes asks only when there's no plan or it's finished/stale (`afterTreeSave`).
-  - The dashboard has a manual entry point.
+  - Both automatic prompts also need the schedule gate (`loadNextActionSummary().scheduleGate`, see the schedule section).
+  - The dashboard has a manual entry point (never gated; it shows a hint when the schedule covers the day).
   - `confirmReport` → `markNextActionProgress` ticks finished items (best-effort).
 - UI:
   - `components/next-action/` (dialog, plan, editor).
   - Dashboard card `project-dashboard-next-action.tsx`, with スタート → `/onair?nodeId=`.
   - Tree highlight `nextActionHighlightAtom`. It's display only and never saved.
-  - Calendar 今日/明日 panel: `buildNextActionDays` (`src/lib/calendar/next-actions.ts`) + `components/calendar/next-action-panel.tsx`. Past unfinished plans carry over to today.
+  - Calendar day panel: the plan of the focused day (`buildDayPanel`). Past unfinished plans carry over to today.
 - `reset_project_progress` deletes the project's `next_actions`.
+
+### Schedule (MVP 6.0)
+Full details are in `docs/schedule.md`.
+- User-defined: on `/project/[id]/schedule` (navbar カレンダー icon) the user assigns tree tasks to days. No AI generation button; the assistant can read it (`list_schedule`) and draft changes (`propose_schedule`, review card applies ticked items via `applyScheduleChanges`).
+- `schedule_items` (one row = one planned session, `node_id` cascades). Rules in `normalizeScheduleOps` (`src/lib/schedule/normalize.ts`, unit-tested) and the DB trigger `schedule_items_guard`: any open action (also one waiting for subtasks), one-time once, loops `completed + open ≤ required`, today or later up to the target date, done entries frozen (RLS delete `done_at is null`). Over the daily goal / non-work day = warning only.
+- Completion: the trigger `records_tick_schedule` stamps the node's earliest open entry when a record becomes `completed` (inside `complete_task_with_reward`). Past open entries carry over to today (持ち越し).
+- `src/lib/schedule/`: `rules.ts`, `days.ts`, `normalize.ts`, `gate.ts` (pure), `data.ts` (server reads, `loadScheduleView`, `loadScheduleGate`), `actions.ts` (server actions), `errors.ts`.
+- Next-action gate (`scheduleGate`): automatic prompts only when today has no unfinished entries, or the next day has none (today while the daily goal isn't reached, else the next work day).
+- Dashboard: `project-dashboard-schedule.tsx` card and `予定 残りN` on the day cards.
+- Tree: nodes with pending entries today get a violet outline + `今日` badge (`todayHighlights` → `scheduleTodayHighlightAtom`, display only, reloaded after a save and on `scheduleVersionAtom`). Calendar: focused-day panel. Assistant page context `schedule` (+ `day`).
 
 ### Rewards / XP
 Full details are in `docs/reward-engine.md`, and the AI placeholder is covered in `docs/ai-review-integration.md`.

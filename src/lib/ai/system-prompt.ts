@@ -4,16 +4,18 @@ import type { AssistantPageContext } from "@/atoms/assistant_page_context_atom";
 export const parsePageContext = (raw: unknown): AssistantPageContext => {
     if (!raw || typeof raw !== "object") return { page: "other" };
     const r = raw as Record<string, unknown>;
-    const page = r.page === "materials" || r.page === "onair" || r.page === "tree" ? r.page : "other";
+    const page = r.page === "materials" || r.page === "onair" || r.page === "tree" || r.page === "schedule" ? r.page : "other";
     const material_id = typeof r.material_id === "number" && Number.isInteger(r.material_id) && r.material_id > 0 ? r.material_id : undefined;
     const node_id = typeof r.node_id === "string" && /^[0-9a-f-]{36}$/i.test(r.node_id) ? r.node_id : undefined;
-    return { page, material_id, node_id };
+    const day = typeof r.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.day) ? r.day : undefined;
+    return { page, material_id, node_id, day };
 };
 
 const describeContext = (context: AssistantPageContext): string => {
     const lines: string[] = [];
     if (context.page === "materials") lines.push(context.material_id ? `The user is viewing material id ${context.material_id} on the materials page. "This material" / "this memo" means it.` : "The user is on the materials list page.");
     if (context.page === "onair") lines.push(`The user is working on (on air) the task with node id ${context.node_id ?? "unknown"}. "This task" means it.`);
+    if (context.page === "schedule") lines.push(context.day ? `The user is on the schedule page with the day ${context.day} open. "This day" means it.` : "The user is on the schedule page.");
     return lines.length ? lines.join(" ") : "No specific page context.";
 };
 
@@ -72,6 +74,13 @@ export const generateSystemPrompt = (project_id: string, context: AssistantPageC
     - Call list_journey when the user talks about their progress, what they struggled with or what to do next, and before planning or changing the goal tree, so suggestions build on what really happened (recurring struggles, earlier next actions, tasks that took much longer than estimated). Rely on the AI reviews and reflections; evidence files are not available to you.
     - After reading the journey, base the answer on it: name the concrete struggles and the suggested next actions of the latest entries (with their task names and dates), point out a struggle that repeats or an earlier next action that is still open, and keep it short. Do not just describe the goal tree.
     - The effort score is the AI's estimate from self-reported reflections, not a grade of the result. Refer to it kindly and never change or promise XP.
+
+    Schedule (which tree tasks the user plans to do on which day)
+    - The schedule is the user's own plan. Read it with list_schedule when the user asks about their plan for today or the coming days, what is left today, or before changing it. Only call propose_schedule when the user asks you to plan, fill, move or clear days; never reschedule on your own.
+    - propose_schedule takes three lists: add (node_id + date, count only for repeating tasks), move (item_id + new date) and remove (item_id). Use the exact node_id / item_id from list_schedule. Dates are YYYY-MM-DD from today up to the target date.
+    - Rules: a one-time task can be planned once; a repeating task at most can_schedule_times more times; done entries are frozen and can never be moved or removed; carried entries are unfinished ones from earlier days (move them to a new day or remove them when asked). Tasks waiting for subtasks can be planned but cannot be started before their subtasks are done.
+    - Respect work_days and daily_goal_minutes: prefer work days and keep each day's planned_minutes within the daily goal. If the user's request goes over it, it is allowed; say so plainly.
+    - propose_schedule only creates a draft; the review card lets the user tick changes and apply them. Summarize briefly and stop.
 
     Finish with a visible result
     - After a successful proposal, briefly summarize what is added, changed, moved and deleted, any material assumptions, and any remaining scope. Tell the user it is a draft available for review; accepting it opens the graph confirmation flow and saving the graph persists it.

@@ -20,6 +20,7 @@ import { validateManualPlan } from "./normalize";
 import type { PlanRevision } from "./prompt";
 import { planHighlights, resolvePlan, shouldAskForPlan } from "./resolve";
 import { isPickableDay } from "./schedule";
+import { loadScheduleGate } from "@/lib/schedule/data";
 import type { NextActionRow, NextActionView } from "./types";
 
 export interface PlanCandidateOption {
@@ -481,10 +482,11 @@ export async function afterTreeSave( projectId: string ): Promise<{ ask: boolean
 
         const rows = await loadPlanNodes( supabase, projectId );
         const candidates = buildCandidates( rows );
-        const savedRow = await loadSavedRow( supabase, projectId );
+        const [ savedRow, gate ] = await Promise.all( [ loadSavedRow( supabase, projectId ), loadScheduleGate( supabase, projectId, rows ) ] );
         const saved = savedRow ? resolvePlan( savedRow, rows, todayKeyNow() ) : null;
 
-        return { ask: shouldAskForPlan( saved, candidates.length ), highlights: planHighlights( saved ) };
+        // the user's own schedule comes first: only ask when it leaves a gap
+        return { ask: shouldAskForPlan( saved, candidates.length ) && gate.allowed, highlights: planHighlights( saved ) };
 
     } catch( e ) {
 

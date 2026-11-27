@@ -1,7 +1,7 @@
 "use client";
 
 import { getActiveTask, getPendingReport } from "@/app/project/[projectId]/onair/serverActions";
-import { House, Network, RadioTower, Cat, FolderBookmark, Settings, BookOpenText } from "lucide-react";
+import { House, Network, RadioTower, Cat, FolderBookmark, Settings, BookOpenText, CalendarDays } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -31,6 +31,11 @@ const ProjectNavigation = ( { projectId }: Props ) => {
             href: `/project/${projectId}/tree`,
             icon: Network,
             label: "目標ツリー",
+        },
+        {
+            href: `/project/${projectId}/schedule`,
+            icon: CalendarDays,
+            label: "スケジュール",
         },
         {
             href: `/project/${projectId}/onair`,
