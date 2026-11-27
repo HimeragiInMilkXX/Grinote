@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run eval:journey`: same setup for the task report analysis (`scripts/eval-journey.eval.ts`: effort, failure-but-tried, streak farming, prompt injection, clarify cases).
 - `.npmrc` sets `legacy-peer-deps=true` because `use-undoable` declares only React 17/18 peers. Keep it.
 
-Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `GEMINI_API_KEY` (Google AI Studio key for Gemini; without it Gemini is hidden and GPT-OSS becomes the default), `AI_BASE_URL` (default `http://localhost:11434/v1`, Ollama), `AI_API_KEY`, `TAVILY_API_KEY` (web_search tool), optional `JOURNEY_AI_MODEL` (report analysis model, default `DEFAULT_MODEL`).
+Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `GEMINI_API_KEY` (Google AI Studio key for Gemini; without it Gemini is hidden and GPT-OSS becomes the default), `AI_BASE_URL` (default `http://localhost:11434/v1`, Ollama), `AI_API_KEY`, `TAVILY_API_KEY` (web_search tool), optional `JOURNEY_AI_MODEL` (report analysis model, default `DEFAULT_MODEL`), optional `JOURNEY_EVIDENCE_MODEL` (Gemini model for report evidence).
 
 ## Stack notes
 
@@ -32,7 +32,7 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - `actions.ts` `createActionClient()`: for Server Actions that write or change auth. It writes cookies.
 - `client.ts`: browser client. `middleware.ts`: used by `proxy.ts`.
 - Auth guards: `redirectIfNotAuthenticated(path)` / `redirectIfAuthenticated` in `src/utils/`, called from layouts.
-- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `next_actions`, `schedule_items`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
+- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `next_actions`, `schedule_items`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage buckets: `materials_media` (public), `journey_evidence` (private). There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
 
 ### Materials
 - `materials` has `is_favourite` and `pinned_at` (null = not pinned; pins are ordered by it). The pin limit is `MATERIAL_PIN_LIMIT` in `src/lib/materials/config.ts`, enforced in `setMaterialPinned`. `getProjectMaterials` excludes pinned rows; `getPinnedMaterials` lists them above the table regardless of search/filter.
@@ -83,20 +83,26 @@ Main routes: `(auth)/login|signup`, `dashboard` (project list), `project/new/{go
 - The client sends `context` (`assistantPageContextAtom`: open material / on-air node) with every chat request; `parsePageContext` validates it and `generateSystemPrompt` adds it. The route stops after 8 steps.
 
 ### Task report and journey (MVP 4.0)
-Full details, including the guide for the evidence feature, are in `docs/journey-system.md`.
+Full details, including the evidence feature, are in `docs/journey-system.md`.
 - Record status flow: `active` ⇄ `paused` → (完成, `finishTask`) `reviewing` → (confirm) `completed`, or `abandoned`. `reviewing` means the timer is stopped and the report is pending, with no XP yet. `records.ended_at` is when 完成 was pressed; streak days and `completed_at` use it. At most one open record (`active`/`paused`/`reviewing`) per project, enforced by a unique index. A pending report blocks starting tasks, tree edits, settings and reset (`getPendingReport`).
 - `task_journals` (1:1 with `records`, cascades with it) holds:
   - a task snapshot
   - the 3 reflections
   - `clarifications` (`[{round, question, answer, skipped}]`)
   - `analysis` (`JourneyAnalysis`, with the reflections it was based on, written back on confirm), `ai_score`, `analysis_status` (`draft | analyzing | needs_clarification | analyzed | failed | confirmed | confirmed_without_ai`), and the limits (3 analyses per record in total, 2 clarification rounds)
-  - `evidence`/`verification`, reserved
+  - `evidence` (`EvidenceItem[]`, ≤ 3 files) and `verification`
   `finishTask` creates it with the task snapshot (the reward uses its estimate). The insert guard forces an empty draft; the update guard freezes confirmed journals; only `complete_task_with_reward` confirms them. Journal queries are in `src/lib/journey/journal-db.ts` (optimistic `updated_at` check, `recoverStaleJournal` for interrupted runs).
 - `task_report/serverActions.ts`: `analyzeReport` → `runJourneyAnalysis` (`src/lib/journey/analyze.ts`: `generateText` + `Output.object` through `getStructuredModel`, `temperature: 0`, never throws). `confirmReport` → `awardTaskCompletion`. `resumeWork` returns the record to `paused` and keeps the analysis. Once analysed, a record always keeps a usable analysis, so it can't get stuck. After a failed analysis the user may claim without AI (score null, ×1.00).
-- The score is effort-focused: relevance 30 + attempt 40 + seriousness 30. The parts are clamped and **summed in code** (`normalizeAnalysis`); verification is set in code (`self_report` until evidence exists). Reflections go to the model inside `<user_…>` tags as data. Keep the prompt (`src/lib/journey/prompt.ts`) and the zod `.describe()` texts consistent.
+- The score is effort-focused: relevance 30 + attempt 40 + seriousness 30. The parts are clamped and **summed in code** (`normalizeAnalysis`); verification is set in code (`evidence` only when the model reported on a file it really got). Reflections go to the model inside `<user_…>` tags as data. Keep the prompt (`src/lib/journey/prompt.ts`) and the zod `.describe()` texts consistent.
 - Journey page: `getJourney` → `loadJourneyEntries` + `computeJourneyStats` (total work time, completed tasks, current/longest streak via `computeCurrentStreak`/`computeLongestStreak`, start day). Entries are collapsible (`components/project/journey/`). Records before 4.0 have no journal and show 旧バージョン.
 - Assistant: `list_journey` / `read_journey_entry` (`src/tools/`) return reflections and AI summaries, **never evidence**. The analysis prompt also gets the last 5 AI summaries (`toHistorySummary`).
 - The dashboard 記録一覧 dialog was removed; the dashboard links to the journey and to a pending report.
+
+### Report evidence (MVP 6.5)
+- Up to 3 photos / videos / audio files per report (`src/lib/journey/evidence.ts`: `EVIDENCE_LIMITS`, `validateEvidenceFile`, same checks on client and server). A report is the 3 reflections **or** at least one file (`validateReport` / `reportSchema(hasEvidence)`); both are recommended (レポートの充実度 indicator).
+- Private bucket `journey_evidence`, path `{user_id}/{project_id}/{record_id}/{evidence_id}.{ext}`, signed URLs (`evidence-db.ts`). Upload via the server action `uploadEvidence`; `next.config.ts` sets `proxyClientMaxBodySize` because `proxy.ts` buffers bodies (10 MB default).
+- Only Gemini sees media (`evidence-model.ts`: Files API via `uploadFile`; `JOURNEY_EVIDENCE_MODEL` optional). No key → uploads disabled. Gemini failure → text-only analysis with files 未分析 (evidence-only → the run fails). Per-file reports are `analysis.evidence` (+ `evidenceSummary`); `modelEvidenceAnalysisSchema` is used only when files are attached.
+- Uploads need a run left; confirming is refused while a file uploaded after the analysis is unanalysed (`evidenceAddedAfterAnalysis`). After confirm, the journey can delete files (`deleteJourneyEvidence`): the `task_journals_guard` lets a confirmed journal lose evidence items and nothing else. Reset / project delete / node delete remove the files (storage isn't cascaded).
 
 ### Work timer (MVP 4.5)
 - Four modes (`src/lib/timer/config.ts` `TIMER_CONFIG` / `TIMER_MODE_INFO`): ポモドーロ 25/5 (15-min long break every 4 completed sessions), 50/10, 10分スターター (10-min countdown, then count-up), フロータイム (count-up, suggests a 10-min break every `flowSuggestMin`, default 50).

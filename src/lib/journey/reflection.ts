@@ -46,6 +46,25 @@ export const reflectionSchema = z.object( {
 
 export type Reflection = z.infer<typeof reflectionSchema>;
 
+const optionalReflectionField = z.string()
+    .transform( s => s.trim() )
+    .pipe( z.string().max( REFLECTION_MAX_LENGTH, `${REFLECTION_MAX_LENGTH}文字以内で書いてください` ) );
+
+/** With evidence uploaded the reflections are optional (still recommended): either one is enough. */
+export const optionalReflectionSchema = z.object( {
+    learned: optionalReflectionField,
+    difficult: optionalReflectionField,
+    next: optionalReflectionField,
+} );
+
+/** The report form's schema: all three answers without evidence, any of them with evidence. */
+export const reportSchema = ( hasEvidence: boolean ) => hasEvidence ? optionalReflectionSchema : reflectionSchema;
+
+export const isReflectionEmpty = ( r: Reflection ) => !r.learned.trim() && !r.difficult.trim() && !r.next.trim();
+
+/** Every answer is long enough (what a report without evidence needs). */
+export const isReflectionComplete = ( r: Partial<Reflection> ) => ( [ "learned", "difficult", "next" ] as const ).every( k => ( r[ k ] ?? "" ).trim().length >= REFLECTION_MIN_LENGTH );
+
 export const EMPTY_REFLECTION: Reflection = { learned: "", difficult: "", next: "" };
 
 /** Draft values (unvalidated, but trimmed to the DB limit). */
@@ -63,7 +82,14 @@ export type ReflectionValidation =
 
 export function validateReflection( value: unknown ): ReflectionValidation {
 
-    const parsed = reflectionSchema.safeParse( value );
+    return validateReport( value, { hasEvidence: false } );
+
+}
+
+/** A report needs the three answers, or at least one evidence file (then the answers are optional). */
+export function validateReport( value: unknown, opts: { hasEvidence: boolean } ): ReflectionValidation {
+
+    const parsed = reportSchema( opts.hasEvidence ).safeParse( value );
 
     if( parsed.success ) return { ok: true, value: parsed.data };
 

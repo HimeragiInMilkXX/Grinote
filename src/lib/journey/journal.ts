@@ -5,14 +5,18 @@
  */
 
 import { asJourneyAnalysis, type JourneyAnalysis, type Verification } from "./analysis";
+import { asEvidenceItems, type EvidenceItem } from "./evidence";
 import type { ClarificationEntry } from "./prompt";
 import { toReflectionDraft, type Reflection } from "./reflection";
 
 export const MAX_ANALYSIS_RUNS = 3;
 export const MAX_CLARIFICATION_ROUNDS = 2;
 
-/** An 'analyzing' journal older than this was interrupted (the run itself times out well before). */
-export const ANALYZING_STALE_MS = 6 * 60 * 1000;
+/**
+ * An 'analyzing' journal older than this was interrupted (the run itself times out well before:
+ * about 4 min, and about 5 with evidence uploads to Gemini).
+ */
+export const ANALYZING_STALE_MS = 8 * 60 * 1000;
 
 export type JournalStatus = "draft" | "analyzing" | "needs_clarification" | "analyzed" | "failed" | "confirmed" | "confirmed_without_ai";
 
@@ -49,8 +53,8 @@ export interface JournalView {
     clarifications: ClarificationEntry[];
     /** Questions of the current round still waiting for an answer. */
     pendingQuestions: string[];
-    /** Reserved for evidence upload (not available yet). */
-    evidence: unknown[];
+    /** Uploaded files (photos / videos / audio); the AI's per-file reports are in `analysis.evidence`. */
+    evidence: EvidenceItem[];
     verification: Verification;
     analysis: JourneyAnalysis | null;
     aiScore: number | null;
@@ -130,7 +134,7 @@ export function toJournalView( row: TaskJournalRow ): JournalView {
         reflection: toReflectionDraft( { learned: row.reflection_learned, difficult: row.reflection_difficult, next: row.reflection_next } ),
         clarifications,
         pendingQuestions: pendingQuestionsOf( row.analysis_status, clarifications, row.clarification_rounds ),
-        evidence: Array.isArray( row.evidence ) ? row.evidence : [],
+        evidence: asEvidenceItems( row.evidence ),
         verification: row.verification,
         analysis: asJourneyAnalysis( row.analysis ),
         aiScore: row.ai_score,
@@ -147,3 +151,17 @@ export const VERIFICATION_LABELS: Record<Verification, string> = {
     self_report: "自己申告",
     evidence: "証拠あり",
 };
+
+/**
+ * Files uploaded after the current analysis was made (they weren't looked at). Confirming is
+ * refused while any exist: the user re-analyses or deletes them. Removed files are fine.
+ */
+export function evidenceAddedAfterAnalysis( evidence: readonly EvidenceItem[], analysis: JourneyAnalysis | null ): EvidenceItem[] {
+
+    if( !analysis ) return [];
+
+    const seen = new Set( ( analysis.evidence ?? [] ).map( e => e.id ) );
+
+    return evidence.filter( e => !seen.has( e.id ) );
+
+}

@@ -1,13 +1,13 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import type { JourneyEntry } from "@/lib/journey/history";
+import type { JourneyEntryView } from "@/app/project/[projectId]/journey/serverActions";
 import { Footprints, NotebookPen } from "lucide-react";
 import Link from "next/link";
 import JourneyTimelineEntry from "./journey-entry";
 
 type Props = {
     projectId: string;
-    entries: JourneyEntry[];
+    entries: JourneyEntryView[];
     pendingReportId: number | null;
 };
 
@@ -35,7 +35,7 @@ const JourneyTimeline = ( { projectId, entries, pendingReportId }: Props ) => {
                 </div>
             ) : (
                 <ol className="relative flex flex-col gap-4 before:absolute before:left-[12px] before:top-2 before:bottom-2 before:w-px before:bg-border">
-                    { entries.map( entry => <JourneyTimelineEntry key={entry.recordId} entry={entry}/> ) }
+                    { entries.map( entry => <JourneyTimelineEntry key={entry.recordId} entry={entry} projectId={projectId}/> ) }
                 </ol>
             ) }
 

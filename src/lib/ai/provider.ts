@@ -78,6 +78,11 @@ export function getChatModel(modelId: string) {
   return isGoogleModel(modelId) ? google(modelId) : provider.chatModel(modelId)
 }
 
+/** Gemini Files API (media for the task report evidence analysis). */
+export function getGoogleFiles() {
+  return google.files()
+}
+
 export function getStructuredModel(modelId: string) {
   return isGoogleModel(modelId)
     ? google(modelId)

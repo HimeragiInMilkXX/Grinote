@@ -1,7 +1,7 @@
 import { Progress } from "@/components/ui/progress";
 import { NEXT_ACTION_LABELS, RUBRIC, RUBRIC_KEYS, type JourneyAnalysis } from "@/lib/journey/analysis";
 import { VERIFICATION_LABELS } from "@/lib/journey/journal";
-import { BadgeCheck, Bot, Lightbulb, Mountain, Sparkles, Trophy } from "lucide-react";
+import { BadgeCheck, Bot, FileUp, Lightbulb, Mountain, Sparkles, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 
 export const scoreTone = ( score: number ) => score >= 75 ? "text-green-600" : score >= 50 ? "text-amber-600" : "text-orange-600";
@@ -80,13 +80,17 @@ const JourneyAnalysisView = ( { analysis }: { analysis: JourneyAnalysis } ) => {
                 )
             }
 
+            { analysis.evidenceSummary && <Section icon={<FileUp className="size-4"/>} title="証拠から分かったこと">{ analysis.evidenceSummary }</Section> }
+
             <div className="rounded-xl bg-muted px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">まとめ</p>
                 { analysis.conclusion }
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-                AI（{ analysis.model }）が振り返りをもとに推定した評価です。自己申告のため、内容の正しさは確認していません。
+                { analysis.verification === "evidence"
+                    ? `AI（${ analysis.model }）がアップロードされた証拠と振り返りをもとに推定した評価です。AIの見立てには誤りが含まれることがあります。`
+                    : `AI（${ analysis.model }）が振り返りをもとに推定した評価です。自己申告のため、内容の正しさは確認していません。` }
             </p>
 
         </div>

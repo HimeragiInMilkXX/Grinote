@@ -10,7 +10,7 @@ Read `docs/reward-engine.md` for the XP formula. The AI score is its `aiScore` i
 on-air 完成 ──► finishTask ──► records.status = 'reviewing'   (timer closed, ended_at set, journal snapshot, no XP)
                                   │
                 task_report page  ▼
-   reflections (3, all required) ─► analyzeReport ─► journal 'analyzing' ─► runJourneyAnalysis (LLM)
+   reflections (3) and/or evidence (≤ 3 files) ─► analyzeReport ─► journal 'analyzing' ─► runJourneyAnalysis (LLM)
                                   │        ├─ clarify   → AI questions (max 2 rounds; これ以上書けない = skip)
                                   │        ├─ analysis  → journal 'analyzed' (score, summary, next actions)
                                   │        └─ failure   → journal 'failed' (再試行 or AIなしで受け取る)
@@ -56,7 +56,7 @@ on-air 完成 ──► finishTask ──► records.status = 'reviewing'   (tim
 - A task snapshot (`task_name`, `task_description`, `estimated_minutes`) is taken at 完成, when `finishTask` creates the journal. Entries read on their own, and the estimate is the reward input.
 - `reflection_learned / reflection_difficult / reflection_next`.
 - `clarifications` jsonb: `[{ round, question, answer, skipped }]`. Pending questions are the latest round's entries without an answer while the status is `needs_clarification`.
-- `evidence` jsonb `[]` and `verification` (`self_report` | `evidence`) are **reserved** for the evidence feature.
+- `evidence` jsonb (`EvidenceItem[]`, see the evidence section) and `verification` (`self_report` | `evidence`, set from the analysis).
 - `analysis` jsonb (`JourneyAnalysis`, including the reflections it was based on), `ai_score` (0..100), `model`, `analysis_status` (`draft | analyzing | needs_clarification | analyzed | failed | confirmed | confirmed_without_ai`), `analysis_runs`, `clarification_rounds`, `analyzed_at`, `confirmed_at`.
 - The `task_journals_insert_guard` trigger: a journal can only be inserted for a `reviewing` record of the same user/project/node, and always starts as an empty draft.
 - The `task_journals_guard` trigger:
@@ -85,7 +85,7 @@ The model fills three parts. `normalizeAnalysis` clamps each and **adds them up 
   - a solid report is usually 70-85; a few generic words score below 35
   The `eval:journey` cases check these.
 - The score enters the formula as `aiScore` (`AiFactor = 1 + 0.15 × score / 100`). The formula version stays 1.0.
-- `verification` is set in code: `self_report` unless the journal has evidence.
+- `verification` is set in code: `evidence` only when the model reported on a file it really received, else `self_report`.
 - Reflections are data inside `<user_…>` tags, and `sanitizeUserText` strips tags that could close them. The prompt tells the model never to follow instructions in them. `npm run eval:journey` has an injection case.
 - The model is `JOURNEY_AI_MODEL` (env) or `DEFAULT_MODEL`. Change the prompt and the zod `.describe()` texts together; they are tuned for small local models.
 
@@ -94,6 +94,7 @@ The model fills three parts. `normalizeAnalysis` clamps each and **adds them up 
 - The reflections, the task name and description, the project goal and the last 5 AI summaries are sent to Gemini (Google) by default when `GEMINI_API_KEY` is set, otherwise (or on a Gemini failure) to `AI_BASE_URL` (local Ollama). With Gemini this data leaves the machine.
 - Before switching to an external provider, check the university's latest rules: the original text is sent while it is processed, even though only the summary is shown later.
 - The assistant tools return reflections and AI summaries, never evidence.
+- Evidence files (photos, video, audio) are sent to Gemini (Google) for the analysis.
 
 ## Trust model (known limit)
 
@@ -103,32 +104,58 @@ The model fills three parts. `normalizeAnalysis` clamps each and **adds them up 
 
 ---
 
-# Next session: evidence upload and evidence analysis
+# Evidence upload and evidence analysis (MVP 6.5)
 
-The schema and UI already hold the slots for evidence: `task_journals.evidence`, `verification`, the disabled 証拠をアップロード card, and 証拠なし on the journey. Steps:
+On the report page the user can upload up to 3 photos, videos or audio files (証拠をアップロード). The AI looks at them together with the reflections, with the same rubric and score. It reports what it saw or heard in each file, and the journey shows the media and those reports. The files are only read by the AI while the report is written. After confirmation they are just stored, and the user can delete them from the journey; the AI's analysis of them stays.
 
-1. **Storage.**
-   - Use the existing `materials_media` bucket under `journey/{record_id}/…`, or a new private bucket `journey_evidence`.
-   - Add storage RLS like the materials policy: the second folder segment must be a `records.id` whose `user_id = auth.uid()`, and the record must still be `reviewing` for insert and delete.
-   - Delete the files in `deleteProject` and in reset (storage isn't cascaded; see how `deleteProject` removes material files first).
-2. **Upload UI** (`task-report-flow.tsx`):
-   - Enable the card, accept `image/*`, `video/*` and `audio/*` (reuse `detectMaterialType` from `src/lib/materials/detect-type.ts`), and show size limits.
-   - Store `{ path, type, name, size, uploadedAt }` items in `task_journals.evidence` through a new server action. Allow it only while the journal is not confirmed; the guard trigger already refuses edits after that.
-   - Let "evidence only" pass: relax `validateReflection` to "reflections OR evidence". Keep recommending both.
-3. **Analysis.**
-   - Images: the OpenAI-compatible API accepts image parts. Use a vision-capable Ollama model (e.g. Gemma 3/4 vision, Qwen2.5-VL) for evidence only, through `JOURNEY_EVIDENCE_MODEL`.
-   - Video: sample a few frames server-side (ffmpeg) and send them as images.
-   - Audio: transcribe first (Whisper via an OpenAI-compatible endpoint, or `experimental_transcribe` from the AI SDK), then send the transcript as text.
-   - Pass the evidence as extra user content in `runJourneyAnalysis`, together with a description of each item. Add an `evidence_summary` field to `modelAnalysisSchema`, and tell the prompt that evidence can confirm or contradict the reflections.
-   - `normalizeAnalysis` already sets `verification: "evidence"` when `hasEvidence` is true. Only set it when the evidence was actually analysed, not just uploaded.
-4. **Rules to keep.**
-   - Evidence is used only for scoring at completion. After that, the assistant and the history prompt read only the AI summary; keep `toHistorySummary` and the tools evidence-free.
-   - Never present a guessed evidence check as verified. If evidence analysis fails, fall back to `self_report`.
-   - Media sent to an external provider leaves the machine. Check the university's rules first.
-5. **Tests.**
-   - Unit tests for the evidence validation, the storage path builder, and `normalizeAnalysis` with evidence.
-   - An `eval:journey` case with a fixture image.
-   - Manual tests: upload → analyse → confirm, a failure while uploading, and a delete before confirming.
+## Flow
+
+```
+task_report ── uploadEvidence (server action, FormData) ── storage journey_evidence + task_journals.evidence
+           ── analyzeReport ── prepareEvidenceParts: storage download → Gemini Files API (uploadFile)
+                            └─ runJourneyAnalysis: Gemini gets the file parts + the text prompt
+                                 ├─ ok → analysis.evidence (per-file report) + evidenceSummary, verification 'evidence'
+                                 └─ Gemini fails before answering → text-only on the usual chain, files 未分析,
+                                    verification 'self_report' (evidence-only report → the run fails)
+           ── confirmReport (refused while a file uploaded after the analysis isn't analysed)
+journey ── deleteJourneyEvidence (allowed after confirm; the DB guard lets only evidence items go)
+```
+
+- **A report is either one:** the three reflections, or at least one file. With a file the answers are optional (max length only, `validateReport` / `reportSchema(hasEvidence)`); both are recommended, and the page shows a レポートの充実度 1/2 indicator. The no-AI claim after a failed analysis also accepts evidence-only reports.
+- **Limits** (`EVIDENCE_LIMITS` in `src/lib/journey/evidence.ts`, same checks on the client and the server): max `MAX_EVIDENCE` (3) files. Photos JPG/PNG/WebP/HEIC up to 10 MB, video MP4/MOV/WebM/MPEG up to 50 MB, audio MP3/WAV/AAC/OGG/FLAC/AIFF up to 25 MB (3 minutes or less recommended). These are formats Gemini documents; m4a is not accepted. 50 MB is the Supabase free-plan file cap. The bucket has `file_size_limit` 50 MB and the same `allowed_mime_types`.
+- **When files can change:** uploads only while the record is `reviewing`, the journal isn't confirmed, `analyzing` or `needs_clarification`, and an analysis run is left. So a new file can always be analysed before confirming. Deleting works any time before confirmation (except while analysing) and on the journey afterwards.
+- **Only Gemini looks at media.** The local models go through the OpenAI-compatible API, which has no video or audio input. `getEvidenceModelId()` is `JOURNEY_EVIDENCE_MODEL` or the default Gemini model, or null without `GEMINI_API_KEY`, and then the upload card is disabled with the reason. A file that couldn't be downloaded or uploaded is told to the model as "not given", and it never counts as analysed. `verification = 'evidence'` only when the model returned a non-empty `observed` for a file it really got.
+- **Time:** uploads and generation share `RUN_BUDGET_MS` (5 min); `ANALYZING_STALE_MS` is 8 min.
+- **Uploads go through a server action.** `next.config.ts` sets `experimental.proxyClientMaxBodySize: '1gb'`, because `src/proxy.ts` buffers request bodies and its 10 MB default truncated larger files.
+
+## Data
+
+- Storage: private bucket `journey_evidence`, path `{user_id}/{project_id}/{record_id}/{evidence_id}.{ext}`, shown through signed URLs (1 h, `withSignedUrls`). Policies: select and delete when the first folder is `auth.uid()`; insert also needs a `reviewing` record of that user and project; no update.
+- `task_journals.evidence`: `EvidenceItem[]` (`{ id, path, kind, mime, name, size, uploadedAt }`), at most 3 (guard `journal_evidence_invalid`).
+- `analysis.evidence`: `EvidenceReport[]` (`{ id, kind, name, observed, assessment, analyzed }`) and `analysis.evidenceSummary`. These are kept when the files are deleted. The model answers with keys `e1..e3` (`modelEvidenceAnalysisSchema`, used only when files are attached, so local models keep the smaller schema). `normalizeAnalysis` maps the keys to ids.
+- Guard `task_journals_guard` (`supabase/migrations/20261130000001_journey_evidence.sql`): a confirmed journal is frozen, except that `evidence` may lose items. Every other column must be equal, and every remaining item must be unchanged. `deleteJourneyEvidence` filters the raw jsonb so the remaining items stay equal.
+- Storage isn't cascaded. `deleteProject` and `resetProjectProgress` call `removeProjectEvidence` first. `saveGraphToNodes` removes the files of records of the nodes it deletes, after the delete succeeds.
+
+## Files
+
+| File | What it does |
+|---|---|
+| `src/lib/journey/evidence.ts` | Limits, formats, `detectEvidenceKind`, `validateEvidenceFile`, paths, `asEvidenceItems`, guidance text (client-safe, unit-tested) |
+| `src/lib/journey/evidence-db.ts` | Bucket name, signed URLs, removal by record or project (server-only) |
+| `src/lib/journey/evidence-model.ts` | `getEvidenceModelId`, `prepareEvidenceParts` (storage → Gemini Files API) |
+| `src/lib/journey/analyze.ts` | Evidence run on Gemini, text-only fallback |
+| `src/lib/journey/prompt.ts` | `EVIDENCE_PROMPT_SECTION`, `analysisSystemPrompt`, the evidence list in the prompt, `(not answered)` for empty answers |
+| `components/project/evidence/evidence-gallery.tsx` | Media + per-file AI report (+ delete), used by the report page and the journey |
+| `components/project/task-report/evidence-upload.tsx` | Drop zone and guidance |
+| `components/project/journey/journey-evidence.tsx` | The journey's 証拠 block with delete |
+
+## Rules to keep
+
+- The assistant tools and the history prompt stay evidence-free: no media and no per-file reports (`toHistorySummary`, `list_journey`, `read_journey_entry`).
+- Never present a file as checked when the model didn't get it.
+- With Gemini the media leave the machine; the upload card says so. Check the university's rules before switching providers.
+- Media content is data: the prompt tells the model never to follow text or speech inside the files.
+- Known limits: the per-file reports depend on Gemini's perception and can be wrong. Signed URLs expire after an hour on a page left open; reload to see the media again.
 
 ## Work timer data (MVP 4.5)
 

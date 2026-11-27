@@ -7,6 +7,8 @@ import { durationObjectToInterval, intervalToDurationObject } from "@/utils/util
 import { Edge, ReactFlowJsonObject } from "@xyflow/react";
 import { randomUUID } from "node:crypto";
 import { applyIdMap, remapNodeIds, sanitizeGraphIds, type IdMap } from "@/lib/tree/ids";
+import { removeRecordsEvidence } from "@/lib/journey/evidence-db";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const convertToTableFormat = ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => {
 
@@ -48,6 +50,17 @@ const MAX_INSERT_ATTEMPTS = 3;
  * new id because their id was invalid, duplicated, or already used by a row outside this project.
  * The client applies it to its canvas.
  */
+/** Records of these nodes that have evidence files (read before the delete cascades their journals). */
+async function recordsWithEvidence( supabase: SupabaseClient, project_id: string, nodeIds: string[] ): Promise<number[]> {
+
+    const { data, error } = await supabase.from( "task_journals" ).select( "record_id, evidence" ).eq( "project_id", project_id ).in( "node_id", nodeIds );
+
+    if( error ) { console.warn( "[tree] evidence lookup", error.message ); return []; }
+
+    return ( data ?? [] ).filter( j => Array.isArray( j.evidence ) && j.evidence.length > 0 ).map( j => Number( j.record_id ) );
+
+}
+
 export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ): Promise<{ idMap: IdMap }> => {
 
     const supabase = await createActionClient();
@@ -169,9 +182,17 @@ export const saveGraphToNodes = async ( rawData: ReactFlowJsonObject<TaskNodeTyp
 
     if( nodesIdPendingDelete.length > 0 ) {
 
+        // the node's records (and journals) cascade, their evidence files don't
+        const evidenceRecords = await recordsWithEvidence( supabase, project_id, nodesIdPendingDelete );
+
         const { error: deleteError } = await supabase.from( "nodes" ).delete().in('id', nodesIdPendingDelete).eq( "project_id", project_id );
 
         if( deleteError ) throw deleteError;
+
+        if( evidenceRecords.length > 0 ) {
+            const user = await requireUser( supabase );
+            await removeRecordsEvidence( supabase, user.id, project_id, evidenceRecords );
+        }
 
     }
 

@@ -6,7 +6,7 @@ const analysis = ( () => {
     const r = normalizeAnalysis( {
         decision: "analyze", clarifying_questions: [], did: "読んだ", achieved: "理解", struggles: "図", next_actions: [],
         conclusion: "よく頑張りました。".repeat( 40 ), relevance: 20, relevance_reason: "", attempt: 30, attempt_reason: "", seriousness: 20, seriousness_reason: "",
-    }, { canClarify: false, hasEvidence: false, model: "m", now: new Date( "2026-11-24T00:00:00Z" ) } );
+    }, { canClarify: false, model: "m", now: new Date( "2026-11-24T00:00:00Z" ) } );
     if( r.kind !== "analysis" ) throw new Error( "fixture" );
     return r.analysis;
 } )();

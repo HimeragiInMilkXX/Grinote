@@ -19,7 +19,7 @@ const full = {
     seriousness_reason: "具体的に書いている",
 };
 
-const opts = { canClarify: true, hasEvidence: false, model: "gemma4:12b", now: NOW };
+const opts = { canClarify: true, model: "gemma4:12b", now: NOW };
 
 describe( "normalizeAnalysis", () => {
 
@@ -70,9 +70,55 @@ describe( "normalizeAnalysis", () => {
         expect( normalizeAnalysis( "text", opts ).kind ).toBe( "invalid" );
     });
 
-    it( "marks evidence verification only when evidence exists", () => {
-        const r = normalizeAnalysis( full, { ...opts, hasEvidence: true } );
-        if( r.kind === "analysis" ) expect( r.analysis.verification ).toBe( "evidence" );
+    it( "has no evidence fields without evidence", () => {
+        const r = normalizeAnalysis( full, opts );
+        if( r.kind !== "analysis" ) throw new Error( "expected analysis" );
+        expect( r.analysis.evidence ).toBeUndefined();
+        expect( r.analysis.evidenceSummary ).toBeUndefined();
+    });
+
+    const evidence = [
+        { id: "aaaaaaaa-1", kind: "image" as const, name: "note.jpg", sent: true },
+        { id: "bbbbbbbb-2", kind: "audio" as const, name: "memo.mp3", sent: true },
+        { id: "cccccccc-3", kind: "video" as const, name: "clip.mp4", sent: false },
+    ];
+
+    it( "maps per-file reports by key and sets evidence verification", () => {
+        const r = normalizeAnalysis( {
+            ...full,
+            evidence_items: [
+                { key: "E2", observed: " 英単語を読み上げる声 ", assessment: "練習している" },
+                { key: "e1", observed: "ノートに単語が書かれている", assessment: "タスクに合う" },
+                { key: "e3", observed: "でっちあげ", assessment: "見えた" },
+                { key: "e1", observed: "重複", assessment: "" },
+            ],
+            evidence_summary: "証拠は振り返りを裏付けている",
+        }, { ...opts, evidence } );
+        if( r.kind !== "analysis" ) throw new Error( "expected analysis" );
+        expect( r.analysis.verification ).toBe( "evidence" );
+        expect( r.analysis.evidenceSummary ).toBe( "証拠は振り返りを裏付けている" );
+        expect( r.analysis.evidence ).toEqual( [
+            { id: "aaaaaaaa-1", kind: "image", name: "note.jpg", observed: "ノートに単語が書かれている", assessment: "タスクに合う", analyzed: true },
+            { id: "bbbbbbbb-2", kind: "audio", name: "memo.mp3", observed: "英単語を読み上げる声", assessment: "練習している", analyzed: true },
+            // never sent to the model: its "report" is ignored
+            { id: "cccccccc-3", kind: "video", name: "clip.mp4", observed: "", assessment: "", analyzed: false },
+        ] );
+    });
+
+    it( "stays self_report when no file was analysed", () => {
+        const notSent = evidence.map( e => ( { ...e, sent: false } ) );
+        const r = normalizeAnalysis( { ...full, evidence_items: [ { key: "e1", observed: "x", assessment: "y" } ], evidence_summary: "s" }, { ...opts, evidence: notSent } );
+        if( r.kind !== "analysis" ) throw new Error( "expected analysis" );
+        expect( r.analysis.verification ).toBe( "self_report" );
+        expect( r.analysis.evidenceSummary ).toBe( "" );
+        expect( r.analysis.evidence?.every( e => !e.analyzed ) ).toBe( true );
+    });
+
+    it( "stays self_report when the model returned nothing for the files", () => {
+        const r = normalizeAnalysis( { ...full, evidence_items: "nope" }, { ...opts, evidence } );
+        if( r.kind !== "analysis" ) throw new Error( "expected analysis" );
+        expect( r.analysis.verification ).toBe( "self_report" );
+        expect( r.analysis.evidence ).toHaveLength( 3 );
     });
 
 });

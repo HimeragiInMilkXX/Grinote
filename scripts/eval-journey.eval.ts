@@ -112,7 +112,7 @@ describe( "journey analysis eval", () => {
 
                 const started = Date.now();
                 const run = await runJourneyAnalysis( {
-                    project, task, actualMinutes: 32, clarifications: [], history: [], canClarify: true, hasEvidence: false,
+                    project, task, actualMinutes: 32, clarifications: [], history: [], canClarify: true,
                     ...c.input,
                 } );
                 const ms = Date.now() - started;

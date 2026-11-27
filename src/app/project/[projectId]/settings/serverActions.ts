@@ -5,6 +5,7 @@ import { createActionClient } from "@/utils/supabase/actions";
 import { requireUser } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { removeProjectEvidence } from "@/lib/journey/evidence-db";
 
 const BUCKET = "materials_media";
 
@@ -73,9 +74,16 @@ export const resetProjectProgress = async ( project_id: string ): Promise<{ ok: 
 
     const supabase = await createActionClient();
 
-    await requireUser( supabase );
+    const user = await requireUser( supabase );
 
     if( await hasActiveTask( supabase, project_id ) ) return { ok: false, message: ACTIVE_TASK_MESSAGE };
+
+    // the reset deletes every record (journals cascade); their evidence files must go first
+    try {
+        await removeProjectEvidence( supabase, user.id, project_id );
+    } catch( e ) {
+        return { ok: false, message: `証拠ファイルの削除に失敗しました: ${String( e )}` };
+    }
 
     const { error } = await supabase.rpc( "reset_project_progress", { p_project_id: project_id } );
 
@@ -150,6 +158,9 @@ export const deleteProject = async ( project_id: string, confirmName: string ): 
             if( error ) throw error.message;
 
         }
+
+        // task report evidence (private bucket, by user / project / record)
+        await removeProjectEvidence( supabase, user.id, project_id );
 
     } catch( e ) {
 

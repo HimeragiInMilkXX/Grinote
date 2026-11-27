@@ -16,14 +16,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { asJourneyAnalysis } from "@/lib/journey/analysis";
-import { runJourneyAnalysis } from "@/lib/journey/analyze";
+import { RUN_BUDGET_MS, runJourneyAnalysis } from "@/lib/journey/analyze";
+import { asEvidenceItems, cleanEvidenceName, evidencePath, isEvidencePathFor, MAX_EVIDENCE, validateEvidenceFile, type EvidenceItem, type EvidenceView } from "@/lib/journey/evidence";
+import { EVIDENCE_BUCKET, removeEvidenceFiles, withSignedUrls } from "@/lib/journey/evidence-db";
+import { getEvidenceModelId, isEvidenceAnalysisAvailable, prepareEvidenceParts } from "@/lib/journey/evidence-model";
 import { loadJourneyEntries, toHistorySummary } from "@/lib/journey/history";
 import {
-    MAX_ANALYSIS_RUNS, MAX_CLARIFICATION_ROUNDS, pendingQuestionsOf, asClarifications, recoveredStatus, settledClarifications, settlePendingClarifications,
+    MAX_ANALYSIS_RUNS, MAX_CLARIFICATION_ROUNDS, evidenceAddedAfterAnalysis, pendingQuestionsOf, asClarifications, recoveredStatus, settledClarifications, settlePendingClarifications,
     toJournalView, type JournalView, type TaskJournalRow,
 } from "@/lib/journey/journal";
 import { createJournalSnapshot, loadJournal, recoverStaleJournal, updateJournal } from "@/lib/journey/journal-db";
-import { toReflectionDraft, validateClarificationAnswers, validateReflection, type Reflection, type ReflectionKey } from "@/lib/journey/reflection";
+import { toReflectionDraft, validateClarificationAnswers, validateReport, type Reflection, type ReflectionKey } from "@/lib/journey/reflection";
 import { awardTaskCompletion } from "@/lib/rewards/award-task";
 import { markNextActionProgress } from "@/lib/next-action/data";
 import { intervalToMinutes, msToMinutes } from "@/lib/rewards/breakdown";
@@ -57,12 +60,20 @@ export interface ReportState {
     timer: TimerSummary | null;
     task: ReportTask;
     journal: JournalView | null;
+    /** uploaded files with signed URLs for display */
+    evidence: EvidenceView[];
+    /** false: no model can look at media right now (no Gemini key), so uploads are off */
+    evidenceEnabled: boolean;
     limits: { maxRuns: number; maxRounds: number };
 }
 
 export type ReportActionResult =
     | { ok: true; journal: JournalView }
     | { ok: false; message: string; errors?: Partial<Record<ReflectionKey, string>>; journal?: JournalView };
+
+export type EvidenceActionResult =
+    | { ok: true; journal: JournalView; evidence: EvidenceView[] }
+    | { ok: false; message: string; journal?: JournalView };
 
 type NodeRow = { task_name: string; description: string | null; time_limit: string | null; isLoop: boolean; repetitions_completed: number | null; repetitions_required: number | null };
 
@@ -87,6 +98,12 @@ const MESSAGES = {
     analyzing: "AIが分析中です。終わるまでお待ちください。",
     notReady: "AIの分析が終わってから確定してください。",
     invalidReflection: "振り返りを確認してください。",
+    evidenceUnavailable: "現在、証拠を分析できるAI（クラウドAI）が利用できないため、アップロードできません。",
+    evidenceLimit: `証拠は${MAX_EVIDENCE}件までです。`,
+    evidenceNoRuns: "AIの分析回数の上限に達したため、証拠を追加できません。",
+    evidenceClarifying: "AIの質問に答えてから証拠を追加してください。",
+    evidenceUploadFailed: "ファイルのアップロードに失敗しました。もう一度お試しください。",
+    evidenceNotAnalyzed: "分析のあとに追加した証拠があります。再分析するか、その証拠を削除してから確定してください。",
     unknown: "エラーが発生しました。もう一度お試しください。",
 } as const;
 
@@ -178,6 +195,8 @@ export const getReport = async ( recordId: number, projectId: string ): Promise<
         timer: summarizeStoredTimer( record.timer ),
         task: toTask( record, journal ),
         journal: view,
+        evidence: await withSignedUrls( supabase, asEvidenceItems( journal?.evidence ) ),
+        evidenceEnabled: isEvidenceAnalysisAvailable(),
         limits: { maxRuns: MAX_ANALYSIS_RUNS, maxRounds: MAX_CLARIFICATION_ROUNDS },
     };
 
@@ -228,12 +247,14 @@ export const analyzeReport = async ( recordId: number, projectId: string, input:
         const record = await loadRecord( supabase, recordId, projectId, user.id );
         if( !record || record.status !== "reviewing" ) return { ok: false, message: MESSAGES.notReviewing };
 
-        const reflection = validateReflection( input.reflection );
-        if( !reflection.ok ) return { ok: false, message: MESSAGES.invalidReflection, errors: reflection.errors };
-
         let journal = await ensureJournal( supabase, record, projectId, user.id );
         if( journal.confirmed_at ) return { ok: false, message: MESSAGES.confirmed };
         if( journal.analysis_status === "analyzing" ) return { ok: false, message: MESSAGES.analyzing, journal: toJournalView( journal ) };
+
+        // either the three answers or at least one evidence file
+        const evidenceItems = asEvidenceItems( journal.evidence );
+        const reflection = validateReport( input.reflection, { hasEvidence: evidenceItems.length > 0 } );
+        if( !reflection.ok ) return { ok: false, message: MESSAGES.invalidReflection, errors: reflection.errors, journal: toJournalView( journal ) };
 
         // the cap holds across re-analysis, clarification rounds and 作業に戻る
         if( journal.analysis_runs >= MAX_ANALYSIS_RUNS ) return { ok: false, message: MESSAGES.runLimit, journal: toJournalView( journal ) };
@@ -280,6 +301,11 @@ export const analyzeReport = async ( recordId: number, projectId: string, input:
 
             const task = toTask( record, journal );
 
+            // the files go to the multimodal model (uploads count towards the run's time budget)
+            const signal = AbortSignal.timeout( RUN_BUDGET_MS );
+            const evidenceModelId = evidenceItems.length > 0 ? getEvidenceModelId() : null;
+            const prepared = evidenceModelId ? await prepareEvidenceParts( supabase, evidenceItems, signal ) : null;
+
             run = await runJourneyAnalysis( {
                 project: { name: projectRes.data.name, finalGoal: projectRes.data.final_goal, description: projectRes.data.description },
                 task: { name: task.name, description: task.description, estimatedMinutes: task.estimatedMinutes, isLoop: task.isLoop, repetitionsCompleted: task.repetitionsCompleted, repetitionsRequired: task.repetitionsRequired },
@@ -289,8 +315,8 @@ export const analyzeReport = async ( recordId: number, projectId: string, input:
                 clarifications: settledClarifications( clarifications ),
                 history: entries.map( toHistorySummary ).filter( ( h ): h is NonNullable<typeof h> => !!h ),
                 canClarify: !skip && journal.clarification_rounds < MAX_CLARIFICATION_ROUNDS,
-                hasEvidence: Array.isArray( journal.evidence ) && journal.evidence.length > 0,
-            } );
+                evidence: evidenceItems.map( e => ( { id: e.id, kind: e.kind, name: e.name, sent: false } ) ),
+            }, prepared && evidenceModelId ? { modelId: evidenceModelId, parts: prepared.map( p => p.part ) } : undefined, signal );
 
         } catch( e ) {
 
@@ -393,7 +419,12 @@ export const confirmReport = async ( recordId: number, projectId: string ): Prom
             if( !journal ) return { ok: false, message: MESSAGES.notReady };
             if( journal.analysis_status === "analyzing" ) return { ok: false, message: MESSAGES.analyzing, journal: toJournalView( journal ) };
 
+            const evidenceItems = asEvidenceItems( journal.evidence );
+
             if( journal.analysis_status === "analyzed" ) {
+
+                // a file the AI never looked at can't go into an analysed report
+                if( evidenceAddedAfterAnalysis( evidenceItems, asJourneyAnalysis( journal.analysis ) ).length > 0 ) return { ok: false, message: MESSAGES.evidenceNotAnalyzed, journal: toJournalView( journal ) };
 
                 // keep the text the score was computed from
                 const basedOn = asJourneyAnalysis( journal.analysis )?.reflection;
@@ -406,8 +437,8 @@ export const confirmReport = async ( recordId: number, projectId: string ): Prom
             }
             else if( journal.analysis_status === "failed" ) {
 
-                // the no-AI claim still needs a real report
-                const reflection = validateReflection( storedReflection( journal ) );
+                // the no-AI claim still needs a real report (the answers, or evidence)
+                const reflection = validateReport( storedReflection( journal ), { hasEvidence: evidenceItems.length > 0 } );
                 if( !reflection.ok ) return { ok: false, message: MESSAGES.invalidReflection, errors: reflection.errors, journal: toJournalView( journal ) };
 
             }
@@ -484,5 +515,115 @@ export const resumeWork = async ( recordId: number, projectId: string ): Promise
     }
 
     redirect( `/project/${projectId}/onair` );
+
+};
+
+/** The record + journal a report edit needs, or the reason it can't be edited now. */
+async function loadEditableJournal( recordId: number, projectId: string ) {
+
+    const supabase = await createActionClient();
+    const user = await requireUser( supabase );
+
+    const record = await loadRecord( supabase, recordId, projectId, user.id );
+    if( !record || record.status !== "reviewing" ) return { error: MESSAGES.notReviewing, journal: null } as const;
+
+    const journal = await ensureJournal( supabase, record, projectId, user.id );
+    if( journal.confirmed_at ) return { error: MESSAGES.confirmed, journal: null } as const;
+    if( journal.analysis_status === "analyzing" ) return { error: MESSAGES.analyzing, journal } as const;
+
+    return { supabase, user, journal } as const;
+
+}
+
+/**
+ * Uploads one evidence file (photo / video / audio) of the pending report. Allowed while a run is
+ * left, so a new file can always be analysed before confirming.
+ */
+export const uploadEvidence = async ( recordId: number, projectId: string, formData: FormData ): Promise<EvidenceActionResult> => {
+
+    try {
+
+        if( !isEvidenceAnalysisAvailable() ) return { ok: false, message: MESSAGES.evidenceUnavailable };
+
+        const file = formData.get( "file" );
+        if( !( file instanceof File ) ) return { ok: false, message: MESSAGES.evidenceUploadFailed };
+
+        const check = validateEvidenceFile( file );
+        if( !check.ok ) return { ok: false, message: check.error };
+
+        const loaded = await loadEditableJournal( recordId, projectId );
+        if( "error" in loaded ) return { ok: false, message: loaded.error ?? MESSAGES.unknown, journal: loaded.journal ? toJournalView( loaded.journal ) : undefined };
+
+        const { supabase, user, journal } = loaded;
+        const view = toJournalView( journal );
+
+        if( journal.analysis_status === "needs_clarification" ) return { ok: false, message: MESSAGES.evidenceClarifying, journal: view };
+        if( journal.analysis_runs >= MAX_ANALYSIS_RUNS ) return { ok: false, message: MESSAGES.evidenceNoRuns, journal: view };
+
+        const items = asEvidenceItems( journal.evidence );
+        if( items.length >= MAX_EVIDENCE ) return { ok: false, message: MESSAGES.evidenceLimit, journal: view };
+
+        const id = crypto.randomUUID();
+        const path = evidencePath( user.id, projectId, recordId, id, check.ext );
+
+        const { error: uploadError } = await supabase.storage.from( EVIDENCE_BUCKET ).upload( path, file, { contentType: check.mime, upsert: false } );
+
+        if( uploadError ) {
+            console.error( "[journey] evidence upload", uploadError.message );
+            return { ok: false, message: MESSAGES.evidenceUploadFailed, journal: view };
+        }
+
+        const item: EvidenceItem = { id, path, kind: check.kind, mime: check.mime, name: cleanEvidenceName( file.name ), size: file.size, uploadedAt: new Date().toISOString() };
+
+        const updated = await updateJournal( supabase, journal, { evidence: [ ...items, item ] } ).catch( e => { console.error( "[journey] evidence save", errorMessage( e ) ); return null; } );
+
+        if( !updated ) {
+            await removeEvidenceFiles( supabase, [ path ] );
+            return { ok: false, message: MESSAGES.conflict, journal: view };
+        }
+
+        return { ok: true, journal: toJournalView( updated ), evidence: await withSignedUrls( supabase, asEvidenceItems( updated.evidence ) ) };
+
+    } catch( e ) {
+
+        console.error( "[journey] uploadEvidence", errorMessage( e ) );
+        return { ok: false, message: MESSAGES.unknown };
+
+    }
+
+};
+
+/** Deletes one evidence file of the pending report (an analysis made with it keeps its report). */
+export const deleteEvidence = async ( recordId: number, projectId: string, evidenceId: string ): Promise<EvidenceActionResult> => {
+
+    try {
+
+        const loaded = await loadEditableJournal( recordId, projectId );
+        if( "error" in loaded ) return { ok: false, message: loaded.error ?? MESSAGES.unknown, journal: loaded.journal ? toJournalView( loaded.journal ) : undefined };
+
+        const { supabase, user, journal } = loaded;
+        const items = asEvidenceItems( journal.evidence );
+        const target = items.find( e => e.id === evidenceId );
+
+        let current = journal;
+
+        if( target ) {
+
+            const updated = await updateJournal( supabase, journal, { evidence: items.filter( e => e.id !== evidenceId ) } );
+            if( !updated ) return { ok: false, message: MESSAGES.conflict, journal: toJournalView( journal ) };
+            current = updated;
+
+            if( isEvidencePathFor( target.path, user.id, projectId, recordId ) ) await removeEvidenceFiles( supabase, [ target.path ] );
+
+        }
+
+        return { ok: true, journal: toJournalView( current ), evidence: await withSignedUrls( supabase, asEvidenceItems( current.evidence ) ) };
+
+    } catch( e ) {
+
+        console.error( "[journey] deleteEvidence", errorMessage( e ) );
+        return { ok: false, message: MESSAGES.unknown };
+
+    }
 
 };

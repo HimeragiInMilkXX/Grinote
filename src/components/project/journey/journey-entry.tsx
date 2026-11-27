@@ -1,15 +1,16 @@
 import TaskRewardBreakdownCard from "@/components/project/task-complete/task-reward-breakdown";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { JourneyEntry } from "@/lib/journey/history";
+import type { JourneyEntryView } from "@/app/project/[projectId]/journey/serverActions";
 import { settledClarifications } from "@/lib/journey/journal";
 import { REFLECTION_QUESTIONS } from "@/lib/journey/reflection";
 import { ChevronDown, FileUp, MessageCircleQuestion } from "lucide-react";
+import JourneyEvidence from "./journey-evidence";
 import type { ReactNode } from "react";
 import { formatDateTime, formatMinutes } from "./format";
 import JourneyAnalysisView, { scoreTone } from "./journey-analysis-view";
 import TimerSummaryView from "@/components/project/timer/timer-summary";
 
-function ScoreBadge( { entry }: { entry: JourneyEntry } ) {
+function ScoreBadge( { entry }: { entry: JourneyEntryView } ) {
 
     const journal = entry.journal;
 
@@ -32,12 +33,13 @@ function Block( { title, children }: { title: string; children: ReactNode } ) {
 }
 
 /** One completed task on the journey timeline: a summary that expands to every detail. */
-const JourneyTimelineEntry = ( { entry }: { entry: JourneyEntry } ) => {
+const JourneyTimelineEntry = ( { entry, projectId }: { entry: JourneyEntryView; projectId: string } ) => {
 
     const { journal, breakdown } = entry;
     const analysis = journal?.analysis ?? null;
     const clarifications = journal ? settledClarifications( journal.clarifications ) : [];
     const levelUp = !!breakdown && breakdown.after.level > breakdown.before.level;
+    const evidenceCount = analysis?.evidence?.length ?? entry.evidence.length;
 
     return (
         <li className="relative pl-8">
@@ -52,6 +54,7 @@ const JourneyTimelineEntry = ( { entry }: { entry: JourneyEntry } ) => {
                     <div className="flex w-full flex-wrap items-center justify-between gap-2">
                         <span className="text-xs text-muted-foreground tabular-nums">{ formatDateTime( entry.completedAt ) }</span>
                         <div className="flex items-center gap-2">
+                            { evidenceCount > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"><FileUp className="size-3"/> 証拠 { evidenceCount } </span> }
                             <ScoreBadge entry={entry}/>
                             <span className="text-sm font-semibold text-green-600 tabular-nums">+{ entry.xp } XP</span>
                             <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"/>
@@ -114,7 +117,7 @@ const JourneyTimelineEntry = ( { entry }: { entry: JourneyEntry } ) => {
                     ) }
 
                     <Block title="証拠">
-                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><FileUp className="size-4"/> 証拠なし（アップロード機能は準備中） </p>
+                        <JourneyEvidence projectId={projectId} recordId={entry.recordId} items={entry.evidence} reports={analysis?.evidence}/>
                     </Block>
 
                     <Block title="AIの分析">

@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import type { EvidenceKind } from "./evidence";
 import type { Reflection } from "./reflection";
 
 export const RUBRIC = {
@@ -57,7 +58,37 @@ export const modelAnalysisSchema = z.object( {
     seriousness_reason: z.string().describe( "Japanese. One sentence." ),
 } );
 
-export type ModelAnalysis = z.infer<typeof modelAnalysisSchema>;
+/**
+ * Used only when evidence files are attached to the request (Gemini), so the local text-only
+ * models keep the smaller schema above.
+ */
+export const modelEvidenceAnalysisSchema = modelAnalysisSchema.extend( {
+    evidence_items: z.array( z.object( {
+        key: z.string().describe( "The evidence key from the prompt, e.g. \"e1\"." ),
+        observed: z.string().describe( "Japanese. What you actually see or hear in this file, concretely (objects, screen, actions, speech)." ),
+        assessment: z.string().describe( "Japanese. 1-2 sentences: what this file shows about the work on THIS task, and whether it matches the report." ),
+    } ) ).describe( "One entry per attached evidence file (e1, e2, ...)." ),
+    evidence_summary: z.string().describe( "Japanese. 1-2 sentences: what the evidence shows overall and whether it supports the report." ),
+} );
+
+export type ModelAnalysis = z.infer<typeof modelEvidenceAnalysisSchema>;
+
+/** One uploaded file as given to the analysis; `sent` = the model really received it. */
+export interface EvidenceInput { id: string; kind: EvidenceKind; name: string; sent: boolean }
+
+/** The AI's report on one evidence file (kept when the file itself is deleted later). */
+export interface EvidenceReport {
+    id: string;
+    kind: EvidenceKind;
+    name: string;
+    observed: string;
+    assessment: string;
+    /** false: the file couldn't be given to the model (it judged the reflections only) */
+    analyzed: boolean;
+}
+
+/** Prompt key of the i-th evidence file. */
+export const evidenceKey = ( index: number ) => `e${index + 1}`;
 
 export type Verification = "self_report" | "evidence";
 
@@ -81,6 +112,10 @@ export interface JourneyAnalysis {
     analyzedAt: string;
     /** The reflections this analysis was made from (written back on confirm). */
     reflection?: Reflection;
+    /** Per-file reports of the evidence the analysis was made with (absent without evidence). */
+    evidence?: EvidenceReport[];
+    /** What the evidence shows overall ("" when none was analysed). */
+    evidenceSummary?: string;
 }
 
 export type NormalizedAnalysis =
@@ -110,7 +145,7 @@ function toKind( value: unknown ): NextActionKind {
  * Turn raw model output into either clarifying questions or a stored analysis.
  * `canClarify` is false when no clarification rounds are left or the user skipped.
  */
-export function normalizeAnalysis( raw: unknown, opts: { canClarify: boolean; hasEvidence: boolean; model: string; now?: Date } ): NormalizedAnalysis {
+export function normalizeAnalysis( raw: unknown, opts: { canClarify: boolean; evidence?: readonly EvidenceInput[]; model: string; now?: Date } ): NormalizedAnalysis {
 
     if( !raw || typeof raw !== "object" ) return { kind: "invalid", reason: "not an object" };
 
@@ -143,6 +178,9 @@ export function normalizeAnalysis( raw: unknown, opts: { canClarify: boolean; ha
 
     const score = rubric.relevance.score + rubric.attempt.score + rubric.seriousness.score;
 
+    const evidence = normalizeEvidenceReports( r.evidence_items, opts.evidence ?? [] );
+    const anyAnalyzed = evidence.some( e => e.analyzed );
+
     return {
         kind: "analysis",
         analysis: {
@@ -152,14 +190,48 @@ export function normalizeAnalysis( raw: unknown, opts: { canClarify: boolean; ha
             struggles: clean( r.struggles ),
             nextActions,
             conclusion,
-            verification: opts.hasEvidence ? "evidence" : "self_report",
+            // "evidence" only when the model really looked at a file and reported on it
+            verification: anyAnalyzed ? "evidence" : "self_report",
             rubric,
             score,
             forcedFinal: !opts.canClarify,
             model: opts.model,
             analyzedAt: ( opts.now ?? new Date() ).toISOString(),
+            ...( evidence.length > 0 ? { evidence, evidenceSummary: anyAnalyzed ? clean( r.evidence_summary, 600 ) : "" } : {} ),
         },
     };
+
+}
+
+/** Match the model's per-file entries (by key e1..) to the files; a file not sent is never "analysed". */
+function normalizeEvidenceReports( raw: unknown, inputs: readonly EvidenceInput[] ): EvidenceReport[] {
+
+    const byKey = new Map<string, { observed: string; assessment: string }>();
+
+    if( Array.isArray( raw ) ) {
+        for( const item of raw ) {
+            if( !item || typeof item !== "object" ) continue;
+            const e = item as Record<string, unknown>;
+            const key = typeof e.key === "string" ? e.key.trim().toLowerCase() : "";
+            if( key && !byKey.has( key ) ) byKey.set( key, { observed: clean( e.observed, 800 ), assessment: clean( e.assessment, 600 ) } );
+        }
+    }
+
+    return inputs.map( ( input, i ) => {
+
+        const found = input.sent ? byKey.get( evidenceKey( i ) ) : undefined;
+        const observed = found?.observed ?? "";
+
+        return {
+            id: input.id,
+            kind: input.kind,
+            name: input.name,
+            observed,
+            assessment: observed ? found?.assessment ?? "" : "",
+            analyzed: !!observed,
+        };
+
+    } );
 
 }
 
