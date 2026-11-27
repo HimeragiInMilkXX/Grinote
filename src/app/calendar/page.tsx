@@ -1,4 +1,5 @@
 import WeeklyCalendar from "@/components/calendar/weekly-calendar";
+import NextActionPanel from "@/components/calendar/next-action-panel";
 import { buttonVariants } from "@/components/ui/button";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
@@ -6,7 +7,7 @@ import { getCalendarData } from "./serverActions";
 
 const CalendarPage = async () => {
 
-    const { weeks, weeksAround, legend } = await getCalendarData();
+    const { weeks, weeksAround, legend, nextActionDays, todayKey } = await getCalendarData();
 
     return (
 
@@ -28,7 +29,10 @@ const CalendarPage = async () => {
 
             ) : (
 
-                <WeeklyCalendar weeks={weeks} initialIndex={weeksAround} legend={legend}/>
+                <>
+                    <WeeklyCalendar weeks={weeks} initialIndex={weeksAround} legend={legend}/>
+                    <NextActionPanel days={nextActionDays} todayKey={todayKey}/>
+                </>
 
             )}
 

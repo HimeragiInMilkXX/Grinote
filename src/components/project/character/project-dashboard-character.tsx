@@ -17,7 +17,8 @@ const ProjectDashboardCharacter = ( { activeTask, project }: { activeTask: OnAir
     }, [activeTask])
 
     return (
-        <div>
+        // capped so a taller side column (e.g. the next action card) can't push the page sideways
+        <div className="max-h-[80vh] shrink-0">
             <RiveCharacter growth_step={project.characters?.growth_step} ref={riveCharacterRef} character_id={project.characters?.id ?? 1} className="h-full" onRiveReady={onRiveReady}/>
         </div>
     )

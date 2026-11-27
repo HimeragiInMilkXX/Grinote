@@ -32,7 +32,7 @@ Env vars (in `.env*`, which is gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PU
 - `actions.ts` `createActionClient()`: for Server Actions that write or change auth. It writes cookies.
 - `client.ts`: browser client. `middleware.ts`: used by `proxy.ts`.
 - Auth guards: `redirectIfNotAuthenticated(path)` / `redirectIfAuthenticated` in `src/utils/`, called from layouts.
-- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
+- Tables in use: `projects`, `nodes`, `materials`, `material_nodes`, `records` (with `timer` jsonb), `task_journals`, `next_actions`, `resources`, `project_resources`, `profile`, `characters`. RPCs: `reset_project_progress`, `complete_task_with_reward`, `add_character_xp`. Storage bucket: `materials_media`. There's no full schema in the repo; changes since the project settings feature are kept as SQL files in `supabase/migrations/` (applied through the Supabase MCP or the SQL editor).
 
 ### Materials
 - `materials` has `is_favourite` and `pinned_at` (null = not pinned; pins are ordered by it). The pin limit is `MATERIAL_PIN_LIMIT` in `src/lib/materials/config.ts`, enforced in `setMaterialPinned`. `getProjectMaterials` excludes pinned rows; `getPinnedMaterials` lists them above the table regardless of search/filter.
@@ -105,6 +105,23 @@ Full details, including the guide for the evidence feature, are in `docs/journey
 - Concepts: a session is a work interval between breaks (pauses don't split it). Breaks are scheduled (countdown) or custom (休憩する: hidden count-up, notice every 5 min). Pause (一時停止, optional reason) is not a break: not in focus, break or total (total = focus + break). Waiting at a 休憩しますか？ offer counts as break time; a skipped offer isn't a break.
 - Rules: a countdown session closes exactly at its scheduled end (`session_due`, whenever the client reports it). Pomodoro: a mid-session break voids the session for the long-break cycle. 50/10 and the starter resume the remaining time after a break. A scheduled break that runs over by at most `TIMER_BREAK_OVERRUN_GRACE_MS` (server-only, `server-config.ts`, default 10 s) ends on time; beyond, the whole overrun is break. The timer can change only in a break; `FREE_TIMER_CHANGES` (3), then every change resets all timer stats (`modeHistory` keeps every timer, `reset: true`). Leaving the starter is always free; after its 10 minutes the starter can't resume work without switching (`starter_switch` keeps the same session).
 - UI: `components/project/onair/onair-timer.tsx` + `onair/timer/` (picker, dialogs, `timer-notify.ts`: sonner + WebAudio beep + browser Notification when hidden). Summary: `components/project/timer/timer-summary.tsx`.
+
+### Next action (MVP 5.5)
+Full details are in `docs/next-action.md`.
+- The AI suggests what to do next from **existing startable nodes** only (`buildCandidates` in `src/lib/next-action/candidates.ts`, same rule as `startTask`). It never adds nodes. Plan kinds: `progress` (one task) and `practice_progress` (a loop practice plus a one-time task). The model answers with short keys (`c1`…). `normalizeNextAction` maps them to ids and enforces the rules, and `resolveScheduledFor` decides the day (the user's choice wins: next work day / today / AI decides).
+- Generation is `runNextActionGeneration` (`generate.ts`). It uses the same model chain as the report analysis and never throws. The prompt (`prompt.ts`) reads the tree outline, today's focus vs `daily_time_goal`, work days, and the last 5 journey summaries, with user text in `<user_…>` tags. Keep it consistent with `schema.ts`.
+- `next_actions` table: the current plan is the latest `saved` row, and there's one open `draft` per project. A draft allows 1 + `NEXT_ACTION_MAX_REVISIONS` (3) generations, then save (as is or edited) or reject. Server actions are in `src/lib/next-action/actions.ts`. Reads for server components are in `data.ts` (`loadNextActionSummary` never throws). `resolvePlan` marks items ok/done/missing/blocked/completed (stale).
+- Triggers:
+  - The task_complete page (`NextActionPrompt`) auto-opens on the first view.
+  - A tree save with changes asks only when there's no plan or it's finished/stale (`afterTreeSave`).
+  - The dashboard has a manual entry point.
+  - `confirmReport` → `markNextActionProgress` ticks finished items (best-effort).
+- UI:
+  - `components/next-action/` (dialog, plan, editor).
+  - Dashboard card `project-dashboard-next-action.tsx`, with スタート → `/onair?nodeId=`.
+  - Tree highlight `nextActionHighlightAtom`. It's display only and never saved.
+  - Calendar 今日/明日 panel: `buildNextActionDays` (`src/lib/calendar/next-actions.ts`) + `components/calendar/next-action-panel.tsx`. Past unfinished plans carry over to today.
+- `reset_project_progress` deletes the project's `next_actions`.
 
 ### Rewards / XP
 Full details are in `docs/reward-engine.md`, and the AI placeholder is covered in `docs/ai-review-integration.md`.

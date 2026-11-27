@@ -25,6 +25,7 @@ import {
 import { createJournalSnapshot, loadJournal, recoverStaleJournal, updateJournal } from "@/lib/journey/journal-db";
 import { toReflectionDraft, validateClarificationAnswers, validateReflection, type Reflection, type ReflectionKey } from "@/lib/journey/reflection";
 import { awardTaskCompletion } from "@/lib/rewards/award-task";
+import { markNextActionProgress } from "@/lib/next-action/data";
 import { intervalToMinutes, msToMinutes } from "@/lib/rewards/breakdown";
 import { createActionClient } from "@/utils/supabase/actions";
 import { createClient, requireUser } from "@/utils/supabase/server";
@@ -412,7 +413,11 @@ export const confirmReport = async ( recordId: number, projectId: string ): Prom
             }
             else return { ok: false, message: MESSAGES.notReady, journal: toJournalView( journal ) };
 
-            recordIdOut = ( await awardTaskCompletion( supabase, { recordId, projectId, userId: user.id } ) ).recordId;
+            const award = await awardTaskCompletion( supabase, { recordId, projectId, userId: user.id } );
+            recordIdOut = award.recordId;
+
+            // tick the saved next action (best-effort, never blocks the reward)
+            if( !award.alreadyCompleted ) await markNextActionProgress( supabase, projectId, record.node_id );
 
         }
 

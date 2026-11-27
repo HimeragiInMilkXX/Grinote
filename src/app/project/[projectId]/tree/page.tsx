@@ -3,6 +3,9 @@ import { OnAirRecord } from "@/types/records";
 import { getActiveTask, getPendingReport } from "../onair/serverActions";
 import FlowClient from "@/components/flow/flow-client";
 import { fetchGraph, saveGraphToNodes } from "./serverActions";
+import { loadNextActionSummary } from "@/lib/next-action/data";
+import { planHighlights } from "@/lib/next-action/resolve";
+import { createClient } from "@/utils/supabase/server";
 
 type Props = {
 
@@ -31,9 +34,11 @@ const ProjectPageTree = async ( { searchParams, params }: Props ) => {
 
     const { nodes, edges } = await fetchGraph(projectId);
 
+    const nextAction = await loadNextActionSummary( await createClient(), projectId );
+
     return (
         <ReactFlowProvider>
-            <FlowClient hasActiveTask={!!activeTask || !!pendingReport} saveGraphToNodes={saveGraphToNodes} isInitialEditMode={isInitialEditMode} initialNodes={nodes} initialEdges={edges} project_id={projectId}/>
+            <FlowClient hasActiveTask={!!activeTask || !!pendingReport} saveGraphToNodes={saveGraphToNodes} isInitialEditMode={isInitialEditMode} initialNodes={nodes} initialEdges={edges} project_id={projectId} nextActionHighlights={planHighlights( nextAction.saved )}/>
         </ReactFlowProvider>
     )
 }

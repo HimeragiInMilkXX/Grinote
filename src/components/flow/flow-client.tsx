@@ -28,6 +28,11 @@ import RequestedUpdateConfirmationPanel from "./generated/requested-update-confi
 import { applyTreeChanges, rekeyAddOps, type TreeChangeOps } from "@/lib/tree/tree-changes";
 import { applyIdMap, newNodeId, remapNodeIds, type IdMap } from "@/lib/tree/ids";
 import type { GraphEditRequest } from "@/atoms/graph_edit_request_atom";
+import { nextActionHighlightAtom } from "@/atoms/next_action_atom";
+import NextActionDialog from "@/components/next-action/next-action-dialog";
+import { afterTreeSave } from "@/lib/next-action/actions";
+import { planHighlights } from "@/lib/next-action/resolve";
+import type { PlanItemRole } from "@/lib/next-action/types";
 
 const nodeTypes = {
     taskNode: TaskNode
@@ -45,6 +50,8 @@ interface FlowClientProps {
     project_id: string;
     saveGraphToNodes: ( rawData: ReactFlowJsonObject<TaskNodeType, Edge>, project_id: string ) => Promise<{ idMap: IdMap }>;
     isInitialEditMode?: boolean
+    /** nodes of the saved next action (highlighted) */
+    nextActionHighlights?: Record<string, PlanItemRole>
 
 }
 
@@ -124,7 +131,7 @@ const FlowNotice = ( { children }: { children: React.ReactNode } ) => (
     </Panel>
 )
 
-function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNodes, project_id, isInitialEditMode = true }: FlowClientProps ) {
+function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNodes, project_id, isInitialEditMode = true, nextActionHighlights }: FlowClientProps ) {
 
     // For onboarding
     const advanceTutorial = useTutorialStep( project_id );
@@ -139,6 +146,14 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
     // Determine whether nodes are interactable
     const setHasActiveTaskAtom = useSetAtom(hasActiveTaskAtom)
     useEffect( () => setHasActiveTaskAtom( hasActiveTask ), [hasActiveTask, setHasActiveTaskAtom]);
+
+    // Next action: highlighted nodes + the "plan the next task?" popup after a save
+    const setNextActionHighlights = useSetAtom( nextActionHighlightAtom );
+    useEffect( () => {
+        setNextActionHighlights( nextActionHighlights ?? {} );
+        return () => setNextActionHighlights( {} );
+    }, [ nextActionHighlights, setNextActionHighlights ] );
+    const [ nextActionOpen, setNextActionOpen ] = useState( false );
 
     const canEdit = !hasActiveTask && isEditMode;
 
@@ -561,6 +576,8 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
             setIsSaving(true)
             setIsLoading(true)
 
+            const hadChanges = requiresSaveAction;
+
             const { idMap } = await saveGraphToNodes( rfInstance.toObject(), project_id );
 
             // The server gave some nodes new ids (an id was invalid or already used elsewhere): follow them
@@ -575,6 +592,12 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
             setRequiresSaveAction(false)
 
             await advanceTutorial( 1 );
+
+            // ask for a next action only when the plan is missing or the edit invalidated it
+            afterTreeSave( project_id ).then( ( { ask, highlights } ) => {
+                setNextActionHighlights( highlights );
+                if( ask && hadChanges ) setNextActionOpen( true );
+            } );
 
         } catch {
 
@@ -857,6 +880,13 @@ function FlowClient( { hasActiveTask, initialNodes, initialEdges, saveGraphToNod
                     }}
 
                 />
+
+                <NextActionDialog
+                    projectId={project_id}
+                    open={nextActionOpen}
+                    onOpenChange={setNextActionOpen}
+                    origin="tree_saved"
+                    onChanged={state => setNextActionHighlights( planHighlights( state.saved ) )}/>
 
                 {/* Reminder of if there is less than two node */}
                 { (elements.nodes.length <= 1 && !isEditMode) && (

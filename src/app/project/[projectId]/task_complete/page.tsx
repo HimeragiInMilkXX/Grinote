@@ -10,6 +10,9 @@ import { getProject } from "@/lib/projects";
 import { asRewardBreakdown } from "@/lib/rewards/breakdown";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import NextActionPrompt from "@/components/next-action/next-action-prompt";
+import { loadNextActionSummary } from "@/lib/next-action/data";
+import { createClient } from "@/utils/supabase/server";
 
 const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/project/[projectId]/task_complete"> ) => {
 
@@ -29,6 +32,8 @@ const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/pr
     const initTotalXp = breakdown ? ( firstView ? breakdown.before.totalXp : breakdown.after.totalXp ) : Number( project.character_xp );
     const xpGained = breakdown && firstView ? breakdown.awardedXp : 0;
 
+    const nextAction = await loadNextActionSummary( await createClient(), projectId );
+
     const time = getMsFormatted( record.duration );
     const timer = summarizeStoredTimer( record.timer );
 
@@ -46,6 +51,12 @@ const ProjectTaskCompletePage = async ( { searchParams, params }: PageProps<"/pr
                     <p className="mb-2 text-sm font-semibold">作業の記録</p>
                     <TimerSummaryView summary={timer} showPauseReasons/>
                 </div>
+                <NextActionPrompt
+                    projectId={projectId}
+                    autoOpen={firstView}
+                    candidateCount={nextAction.candidateCount}
+                    saved={nextAction.saved}
+                    todayKey={nextAction.todayKey}/>
                 <div className="w-full flex gap-3">
 
                     <Link href={`/project/${projectId}/dashboard`} className="basis-0 grow">
